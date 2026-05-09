@@ -1,0 +1,82 @@
+@import "tailwindcss";
+
+:root {
+  --background: #f0fdf4; /* Light green tint background */
+  --foreground: #0f172a;
+  
+  --card: #ffffff;
+  --card-foreground: #0f172a;
+  
+  --primary: #1F7A63;
+  --primary-foreground: #ffffff;
+  
+  --secondary: #F4A261;
+  --secondary-foreground: #ffffff;
+  
+  --muted: #f1f5f9;
+  --muted-foreground: #64748b;
+  
+  --border: #e2e8f0;
+}
+
+@theme inline {
+  --color-background: var(--background);
+  --color-foreground: var(--foreground);
+  --color-card: var(--card);
+  --color-card-foreground: var(--card-foreground);
+  --color-primary: var(--primary);
+  --color-primary-foreground: var(--primary-foreground);
+  --color-secondary: var(--secondary);
+  --color-secondary-foreground: var(--secondary-foreground);
+  --color-muted: var(--muted);
+  --color-muted-foreground: var(--muted-foreground);
+  --color-border: var(--border);
+  
+  --color-brand-primary: #1F7A63;
+  --color-brand-secondary: #F4A261;
+  
+  --font-sans: 'Inter', var(--font-geist-sans), sans-serif;
+}
+
+@media (prefers-color-scheme: dark) {
+  :root {
+    --background: #020617; /* Deep modern black/blue */
+    --foreground: #f8fafc;
+    
+    --card: #0f172a;
+    --card-foreground: #f8fafc;
+    
+    --primary: #2DD4BF; /* Lighter teal for dark mode */
+    --primary-foreground: #020617;
+    
+    --secondary: #FBA94C;
+    --secondary-foreground: #020617;
+    
+    --muted: #1e293b;
+    --muted-foreground: #94a3b8;
+    
+    --border: #1e293b;
+  }
+}
+
+body {
+  background-color: var(--background);
+  color: var(--foreground);
+  font-family: var(--font-sans);
+  background-image: 
+    radial-gradient(circle at 15% 50%, rgba(31, 122, 99, 0.15) 0%, transparent 50%),
+    radial-gradient(circle at 85% 30%, rgba(244, 162, 97, 0.12) 0%, transparent 50%);
+  background-attachment: fixed;
+}
+
+@layer utilities {
+  .glass {
+    @apply bg-white/60 dark:bg-slate-900/40 backdrop-blur-xl border border-white/40 dark:border-slate-700/50 shadow-xl dark:shadow-2xl;
+  }
+  .glass-panel {
+    @apply bg-white/70 dark:bg-slate-950/50 backdrop-blur-2xl border border-white/50 dark:border-slate-800/60 shadow-lg;
+  }
+  .text-gradient {
+    @apply bg-clip-text text-transparent bg-gradient-to-r from-primary to-secondary;
+  }
+}
