@@ -1,6 +1,6 @@
-# Andara - Plataforma B2B para Guías Turísticos 🏔️
+# Andara - Plataforma B2C para Guías Turísticos 🏔️
 
-Andara es una moderna plataforma SaaS B2B diseñada exclusivamente para empoderar a guías turísticos y agencias de viaje boutique en Perú. Soluciona los problemas críticos de gestión de disponibilidad, desorganización en el inventario de tours y pérdida de prospectos de ventas provenientes de redes sociales.
+Andara es una moderna plataforma SaaS B2C diseñada exclusivamente para empoderar a guías turísticos en Perú. Soluciona los problemas críticos de gestión de disponibilidad, desorganización en el inventario de tours y pérdida de prospectos de ventas provenientes de redes sociales.
 
 ## 🌟 Características Principales
 
