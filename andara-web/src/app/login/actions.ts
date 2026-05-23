@@ -2,68 +2,73 @@
 
 import { revalidatePath } from 'next/cache'
 import { redirect } from 'next/navigation'
-import { createClient } from '@/utils/supabase/server'
+import { cookies } from 'next/headers'
+
+const USERS_DB: Record<string, { name: string; email: string; passwordHash: string }> = {}
+
+function simpleHash(str: string): string {
+  let hash = 0
+  for (let i = 0; i < str.length; i++) {
+    const char = str.charCodeAt(i)
+    hash = (hash << 5) - hash + char
+    hash = hash & hash
+  }
+  return Math.abs(hash).toString(36)
+}
+
+function hashPassword(password: string): string {
+  return simpleHash(password + 'andara_salt_2024')
+}
 
 export async function login(formData: FormData) {
-  const supabase = await createClient()
+  const email = (formData.get('email') as string).toLowerCase()
+  const password = formData.get('password') as string
+  const user = USERS_DB[email]
 
-  // Evita crash si las variables de entorno no existen (modo vista previa local)
-  if (!process.env.NEXT_PUBLIC_SUPABASE_URL) {
-    console.log("Modo de desarrollo: Simulando login")
-    redirect('/')
+  if (!user || user.passwordHash !== hashPassword(password)) {
+    redirect('/login?error=credentials')
   }
 
-  const data = {
-    email: formData.get('email') as string,
-    password: formData.get('password') as string,
-  }
-
-  const { error } = await supabase.auth.signInWithPassword(data)
-
-  if (error) {
-    redirect('/login?error=true')
-  }
+  const cookieStore = await cookies()
+  cookieStore.set('andara_session', Buffer.from(JSON.stringify({ name: user.name, email })).toString('base64'), {
+    httpOnly: true,
+    secure: false,
+    sameSite: 'lax',
+    maxAge: 60 * 60 * 24 * 7,
+    path: '/',
+  })
 
   revalidatePath('/', 'layout')
   redirect('/')
 }
 
 export async function signup(formData: FormData) {
-  const supabase = await createClient()
+  const name = formData.get('name') as string
+  const email = (formData.get('email') as string).toLowerCase()
+  const password = formData.get('password') as string
 
-  if (!process.env.NEXT_PUBLIC_SUPABASE_URL) {
-    console.log("Modo de desarrollo: Simulando registro")
-    redirect('/')
+  if (USERS_DB[email]) {
+    redirect('/register?error=exists')
   }
 
-  const data = {
-    email: formData.get('email') as string,
-    password: formData.get('password') as string,
-    options: {
-      data: {
-        full_name: formData.get('name') as string,
-      }
-    }
-  }
+  USERS_DB[email] = { name, email, passwordHash: hashPassword(password) }
 
-  const { error } = await supabase.auth.signUp(data)
+  const cookieStore = await cookies()
+  cookieStore.set('andara_session', Buffer.from(JSON.stringify({ name, email })).toString('base64'), {
+    httpOnly: true,
+    secure: false,
+    sameSite: 'lax',
+    maxAge: 60 * 60 * 24 * 7,
+    path: '/',
+  })
 
-  if (error) {
-    redirect('/register?error=true')
-  }
-
-  // Despues de registrar, podemos redirigir a una pagina de espera o dashboard
   revalidatePath('/', 'layout')
   redirect('/')
 }
 
 export async function logout() {
-  const supabase = await createClient()
-  
-  if (process.env.NEXT_PUBLIC_SUPABASE_URL) {
-    await supabase.auth.signOut()
-  }
-  
+  const cookieStore = await cookies()
+  cookieStore.delete('andara_session')
   revalidatePath('/', 'layout')
   redirect('/login')
 }
