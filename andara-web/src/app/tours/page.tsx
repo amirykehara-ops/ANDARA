@@ -48,12 +48,12 @@ const containerVariants = {
     opacity: 1,
     transition: { staggerChildren: 0.1 }
   }
-}
+} as const
 
 const itemVariants = {
   hidden: { opacity: 0, scale: 0.95 },
   show: { opacity: 1, scale: 1, transition: { type: "spring", stiffness: 300, damping: 24 } }
-}
+} as const
 
 export default function ToursPage() {
   const [tours, setTours] = useState<typeof defaultTours>([])
@@ -127,8 +127,19 @@ export default function ToursPage() {
             </motion.div>
           ))
         ) : (
-          <div className="col-span-full py-12 text-center text-muted-foreground bg-muted/20 rounded-2xl border border-dashed border-border/50">
-            No se encontraron tours.
+          <div className="col-span-full py-20 flex flex-col items-center justify-center text-center text-muted-foreground bg-muted/10 rounded-3xl border-2 border-dashed border-border/50">
+            <div className="w-16 h-16 rounded-full bg-primary/10 flex items-center justify-center mb-4">
+              <Search className="w-8 h-8 text-primary" />
+            </div>
+            <h3 className="text-xl font-bold text-foreground mb-2">No se encontraron tours</h3>
+            <p className="max-w-sm mb-6 text-sm">
+              No hay resultados para "{searchTerm}". Prueba con otros términos o crea un tour nuevo.
+            </p>
+            <Link href="/tours/editor">
+              <Button>
+                <Plus className="w-4 h-4 mr-2" /> Crear Tour
+              </Button>
+            </Link>
           </div>
         )}
       </motion.div>

@@ -22,6 +22,7 @@ export default function TourEditorPage() {
     capacity: "",
     imageUrl: ""
   })
+  const [errors, setErrors] = useState<Record<string, string>>({})
 
   useEffect(() => {
     if (editId) {
@@ -43,17 +44,43 @@ export default function TourEditorPage() {
   }, [editId])
 
   const handleSave = () => {
+    const newErrors: Record<string, string> = {}
+    
+    if (!tourData.title.trim()) {
+      newErrors.title = "El título del tour es obligatorio."
+    }
+    
+    const priceNum = parseFloat(tourData.price)
+    if (!tourData.price.trim()) {
+      newErrors.price = "El precio es obligatorio."
+    } else if (isNaN(priceNum) || priceNum < 0) {
+      newErrors.price = "El precio debe ser un número positivo o 0."
+    }
+    
+    const capNum = parseInt(tourData.capacity)
+    if (!tourData.capacity.trim()) {
+      newErrors.capacity = "La capacidad es obligatoria."
+    } else if (isNaN(capNum) || capNum <= 0) {
+      newErrors.capacity = "La capacidad debe ser un número mayor a 0."
+    }
+
+    if (Object.keys(newErrors).length > 0) {
+      setErrors(newErrors)
+      return
+    }
+
+    setErrors({})
     const saved = localStorage.getItem("andara_tours")
     let tours = saved ? JSON.parse(saved) : defaultTours
 
     const newTour = {
       id: editId || Date.now().toString(),
-      title: tourData.title || "Tour sin título",
-      price: tourData.price || "0.00",
+      title: tourData.title,
+      price: parseFloat(tourData.price).toFixed(2),
       currency: tourData.currency,
       duration: tourData.duration || "N/A",
       capacity: parseInt(tourData.capacity) || 1,
-      imageUrl: tourData.imageUrl,
+      imageUrl: tourData.imageUrl || "https://images.unsplash.com/photo-1587595431973-160d0d94add1?q=80&w=800&auto=format&fit=crop",
       description: tourData.description,
       status: "active" as const
     }
@@ -88,9 +115,13 @@ export default function TourEditorPage() {
           <div className="glass-panel p-6 rounded-2xl">
             <TourForm 
               data={tourData} 
-              onChange={setTourData} 
+              onChange={(data) => {
+                setTourData(data)
+                setErrors({})
+              }} 
               onSubmit={handleSave}
               onCancel={() => router.push("/tours")}
+              errors={errors}
             />
           </div>
         </div>

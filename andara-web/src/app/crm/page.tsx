@@ -2,7 +2,7 @@
 
 import { KanbanBoard } from "@/components/crm/KanbanBoard"
 import { Button } from "@/components/ui/button"
-import { Plus, Download } from "lucide-react"
+import { Download } from "lucide-react"
 
 export default function CRMPage() {
   return (
@@ -18,9 +18,7 @@ export default function CRMPage() {
           <Button variant="outline" className="flex-1 sm:flex-none">
             <Download className="w-4 h-4 mr-2" /> Exportar
           </Button>
-          <Button className="flex-1 sm:flex-none">
-            <Plus className="w-4 h-4 mr-2" /> Nuevo Lead
-          </Button>
+
         </div>
       </div>
 

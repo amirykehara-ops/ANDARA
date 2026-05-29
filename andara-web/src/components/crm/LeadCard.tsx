@@ -6,11 +6,11 @@ import { motion } from "framer-motion"
 export type Lead = {
   id: string
   name: string
-  source: "whatsapp" | "instagram"
-  interest: string
-  status: "new" | "contacted" | "negotiating" | "won" | "lost"
+  source: "whatsapp" | "instagram" | "facebook"
+  interest?: string
+  status?: "new" | "contacted" | "negotiating" | "won" | "lost"
   phone?: string
-  date: string
+  date?: string
 }
 
 interface LeadCardProps {
@@ -43,9 +43,13 @@ export function LeadCard({ lead, onMoveLead }: LeadCardProps) {
             <div className="p-1.5 bg-emerald-100 dark:bg-emerald-900/30 text-emerald-600 dark:text-emerald-400 rounded-full">
               <MessageCircle className="w-4 h-4" />
             </div>
-          ) : (
+          ) : lead.source === "instagram" ? (
             <div className="p-1.5 bg-pink-100 dark:bg-pink-900/30 text-pink-600 dark:text-pink-400 rounded-full">
               <Camera className="w-4 h-4" />
+            </div>
+          ) : (
+            <div className="p-1.5 bg-blue-100 dark:bg-blue-900/30 text-blue-600 dark:text-blue-400 rounded-full">
+              <span className="text-xs font-bold w-4 h-4 flex items-center justify-center">F</span>
             </div>
           )}
           <span className="font-semibold text-foreground text-sm">{lead.name}</span>

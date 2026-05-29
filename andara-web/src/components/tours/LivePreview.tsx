@@ -24,7 +24,14 @@ export function LivePreview({ data }: LivePreviewProps) {
           layoutId="preview-image"
         >
           {data.imageUrl ? (
-            <img src={data.imageUrl} alt="Tour Preview" className="w-full h-full object-cover" />
+            <img 
+              src={data.imageUrl} 
+              alt="Tour Preview" 
+              className="w-full h-full object-cover" 
+              onError={(e) => {
+                (e.target as HTMLImageElement).src = "https://images.unsplash.com/photo-1587595431973-160d0d94add1?q=80&w=800&auto=format&fit=crop"
+              }}
+            />
           ) : (
             <div className="w-full h-full flex items-center justify-center text-slate-400 bg-slate-200 dark:bg-slate-800">
               Sin imagen

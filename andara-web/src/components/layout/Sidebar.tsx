@@ -6,9 +6,10 @@ import { LayoutDashboard, Map, Calendar as CalendarIcon, Users, Settings } from 
 import { cn } from "@/lib/utils"
 import { motion } from "framer-motion"
 import { logout } from "@/app/login/actions"
+import { useState, useEffect } from "react"
 
 const navItems = [
-  { name: "Dashboard", href: "/", icon: LayoutDashboard },
+  { name: "Dashboard", href: "/dashboard", icon: LayoutDashboard },
   { name: "Mis Tours", href: "/tours", icon: Map },
   { name: "Disponibilidad", href: "/calendar", icon: CalendarIcon },
   { name: "Leads CRM", href: "/crm", icon: Users },
@@ -17,6 +18,22 @@ const navItems = [
 
 export function Sidebar() {
   const pathname = usePathname()
+  const [user, setUser] = useState<{name: string, email: string} | null>(null)
+
+  useEffect(() => {
+    if (typeof window !== 'undefined') {
+      const match = document.cookie.match(new RegExp('(^| )andara_session=([^;]+)'))
+      if (match) {
+        try {
+          const decoded = atob(match[2])
+          const session = JSON.parse(decoded)
+          setUser(session)
+        } catch (e) {
+          console.error('Failed to parse session cookie', e)
+        }
+      }
+    }
+  }, [])
 
   return (
     <div className="flex h-screen w-64 flex-col glass-panel border-r border-border/50 z-10">
@@ -63,11 +80,11 @@ export function Sidebar() {
       <div className="border-t border-border/50 p-4 pb-8 space-y-4">
         <div className="flex items-center p-2 rounded-xl hover:bg-muted/50 transition-colors cursor-pointer">
           <div className="h-10 w-10 rounded-full bg-gradient-to-br from-secondary to-amber-500 flex items-center justify-center text-white font-bold text-sm shadow-md border border-white/20">
-            G
+            {user ? user.name.charAt(0).toUpperCase() : 'G'}
           </div>
-          <div className="ml-3">
-            <p className="text-sm font-medium text-foreground">Guía Demo</p>
-            <p className="text-xs text-muted-foreground">guia@andara.pe</p>
+          <div className="ml-3 overflow-hidden">
+            <p className="text-sm font-medium text-foreground truncate">{user ? user.name : 'Guía Demo'}</p>
+            <p className="text-xs text-muted-foreground truncate">{user ? user.email : 'guia@andara.pe'}</p>
           </div>
         </div>
         <form action={logout}>

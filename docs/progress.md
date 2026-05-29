@@ -2,50 +2,65 @@
 
 Este documento registra el progreso actual del desarrollo de la plataforma web.
 
-## Estado General
-**Fase Actual:** Fase 1 (MVP)
-**Sprint Actual:** Sprint 1 - Setup y Estructura Base
-**Porcentaje de Completitud (Sprint 1):** 100%
+---
+
+## 📊 Estado General
+*   **Fase Actual:** Fase 1 (MVP) e inicio de Inteligencia Artificial (AADD)
+*   **Sprint Actual:** Sprint 7 - Landing Page y Reestructuración de Rutas
+*   **Porcentaje de Completitud:** 100% (Sprint 7 finalizado ✅)
 
 ---
 
-## Logros Completados (Hasta la fecha)
+## 🏆 Logros Completados (Hasta la fecha)
 
-### 1. Arquitectura de Datos (Supabase)
-- [x] Diseño del modelo relacional.
-- [x] Creación del archivo `schema.sql` con las tablas fundamentales:
-  - `profiles`
-  - `tours`
-  - `availability`
-  - `bookings`
-  - `leads_crm`
-- [x] Configuración de políticas de seguridad a nivel de fila (RLS) para proteger los datos de cada guía.
+### 1. Arquitectura de Datos (Supabase Core)
+*   [x] Diseño del modelo relacional.
+*   [x] Creación del archivo `schema.sql` con las tablas fundamentales (`profiles`, `tours`, `availability`, `bookings`, `leads_crm`).
+*   [x] Configuración de políticas de seguridad a nivel de fila (RLS) para proteger los datos de cada guía.
+*   [x] Stubs mockeados chainables de Supabase en `src/utils/supabase/server.ts` para posibilitar ejecuciones rápidas sin credenciales.
 
-### 2. Setup del Proyecto Web
-- [x] Inicialización del proyecto Next.js 14 usando App Router en el directorio `andara-web`.
-- [x] Configuración de TypeScript con validación estricta.
-- [x] Configuración de Tailwind CSS (v4) con la paleta de colores corporativa (Primario: `#1F7A63`, Secundario: `#F4A261`).
+### 2. Setup del Proyecto Web & UI Kit Premium
+*   [x] Inicialización del proyecto Next.js 14 usando App Router en el directorio `andara-web`.
+*   [x] Configuración de TypeScript con validación estricta y compilación 100% limpia.
+*   [x] Rediseño Premium con **Glassmorphism** y variables de Modo Claro/Oscuro en `globals.css`.
+*   [x] Desarrollo de componentes base reutilizables:
+    *   `Button` (múltiples variantes y tamaños)
+    *   `Card` (elevación dinámica en hover y fondo cristal)
+    *   `Badge` (etiquetas de estado adaptativas)
+    *   `Table` (tablas adaptadas a interfaces oscuras)
 
-### 3. Sistema de Diseño (UI Kit)
-- [x] Creación de utilidad `cn` para fusión de clases CSS.
-- [x] Desarrollo de componentes base reutilizables (inspirados en Shadcn/UI):
-  - `Button` (Múltiples variantes y tamaños)
-  - `Card` (Estructura de tarjetas para contenido)
-  - `Badge` (Etiquetas de estado: Éxito, Advertencia, Destructivo)
-  - `Table` (Tablas de datos completas)
+### 3. Autenticación y Configuración de Perfil (Sprint 2 y 6)
+*   [x] Pantallas inmersivas de Login y Registro en pantalla dividida (*Split Screen*).
+*   [x] Sistema de autenticación local simulado en memoria (`USERS_DB`) y persistido en cookies seguras (`andara_session`).
+*   [x] Middleware que asegura que la sesión simulada se mantenga validada en cada ruta.
+*   [x] Edición de Perfil del Guía (/settings) con Server Action (`updateProfile`) compatible con tipos React.
 
-### 4. Componentes y Layouts
-- [x] **Sidebar:** Menú de navegación lateral responsivo con enlaces a las secciones principales (Dashboard, Tours, Calendario, CRM).
-- [x] **Header:** Barra superior con input de búsqueda global y notificaciones.
-- [x] Integración de Sidebar y Header en el `RootLayout` (`app/layout.tsx`).
+### 4. Landing Page Pública (Sprint 7)
+*   [x] Creación del `LayoutWrapper` de Next.js para ocultar dinámicamente las barras laterales y superiores de administración en rutas públicas (`/`, `/login`, `/register`).
+*   [x] Reubicación del Dashboard Ejecutivo privado a `/dashboard` y reestructuración del Sidebar.
+*   [x] Diseño e implementación de la página de inicio pública (`/`) con orbes de iluminación en gradiente de fondo.
+*   [x] Sección Hero interactiva y expositor de características de tours, calendario y CRM con micro-animaciones Framer Motion.
+*   [x] Redirección nativa y directa hacia el inicio de sesión y registro de usuarios.
 
-### 5. Dashboard Principal
-- [x] Construcción de la vista del Dashboard Ejecutivo (`app/page.tsx`).
-- [x] Componente `StatCard`: Tarjetas de KPI para visualizar "Ingresos Totales", "Reservas Confirmadas" y "Leads por Cerrar", incluyendo indicadores de tendencia.
-- [x] Componente `RecentBookings`: Tabla de datos que muestra las últimas reservas con diseño de estados dinámicos (badges de confirmación/cancelación).
-- [x] Verificación de compilación del proyecto (Cero errores de build).
+### 5. Gestión de Tours con Live Preview (Sprint 3 y 6)
+*   [x] Vista de cuadrícula ("Mis Tours") animada en cascada con barra de búsqueda funcional.
+*   [x] CRUD completo de Tours en memoria local (`localStorage`), permitiendo crear, editar y borrar tours.
+*   [x] Editor interactivo en pantalla dividida:
+    *   **Formulario:** Captura de datos (título, precio, moneda, capacidad, duración, descripción e imagen) con validación estricta y visualización de errores en rojo.
+    *   **Live Preview:** Smartphone simulado en tiempo real con notch interactivo, barra de reservas móvil y protección ante enlaces de imagen rotos (`onError`).
+
+### 6. Calendario de Disponibilidad (Sprint 4)
+*   [x] Vista mensual interactiva de calendario (`/calendar`) con navegación dinámica impulsada por Framer Motion.
+*   [x] Panel de detalles diario responsivo (`DayDetailsPanel.tsx`).
+*   [x] Gestión de cupos diarios y bloqueo manual de días en tiempo real.
+
+### 7. Leads CRM (Sprint 5)
+*   [x] Tablero Kanban responsivo completo (`crm/page.tsx`) optimizado para pantallas completas.
+*   [x] Clasificación visual de clientes en 4 columnas de estado (Nuevos, Contactados, Negociando, Cerrados).
+*   [x] **Botón Mágico de Conversión:** Automatiza y abre de inmediato chats directos de WhatsApp formateando el número telefónico del lead.
 
 ---
 
-## Próximos Pasos Inmediatos
-- Iniciar el **Sprint 2**, comenzando por la conexión real del proyecto Next.js con un proyecto de Supabase para configurar la Autenticación (Login/Registro).
+## 🛠️ Metodología de Desarrollo
+*   **Sprint 1 al 5:** Desarrollo Frontend Core y estructuración visual del MVP.
+*   **Sprint 6 & 7:** Consolidación mediante la metodología de **Desarrollo Guiado por Multi-Agentes (Multi-Agent Driven Development)**, estructurando roles virtuales de IA (`FrontendAgent`, `BackendAgent`, `QAAgent`, `DocsAgent`) para asegurar entregas robustas, libre de TypeScript errors y documentación alineada en la carpeta `/docs`.

@@ -8,13 +8,14 @@ export async function updateProfile(formData: FormData) {
   
   if (!process.env.NEXT_PUBLIC_SUPABASE_URL) {
     console.log("Modo de desarrollo: Simulando actualización de perfil")
-    return { success: true }
+    return
   }
 
   const { data: { user } } = await supabase.auth.getUser()
   
   if (!user) {
-    return { error: 'No autorizado' }
+    console.error('No autorizado')
+    return
   }
 
   const name = formData.get('name') as string
@@ -34,9 +35,9 @@ export async function updateProfile(formData: FormData) {
     })
 
   if (error) {
-    return { error: error.message }
+    console.error(error.message)
+    return
   }
 
   revalidatePath('/settings')
-  return { success: true }
 }
