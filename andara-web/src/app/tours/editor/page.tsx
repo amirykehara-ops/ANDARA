@@ -1,6 +1,6 @@
 "use client"
 
-import { useState, useEffect } from "react"
+import { useState, useEffect, Suspense } from "react" // 1. Añadimos Suspense aquí
 import { TourForm, type TourData } from "@/components/tours/TourForm"
 import { LivePreview } from "@/components/tours/LivePreview"
 import { ArrowLeft } from "lucide-react"
@@ -8,7 +8,8 @@ import Link from "next/link"
 import { useRouter, useSearchParams } from "next/navigation"
 import { defaultTours } from "@/app/tours/page"
 
-export default function TourEditorPage() {
+// 2. Cambiamos el nombre de la función a un componente interno
+function TourEditorContent() {
   const router = useRouter()
   const searchParams = useSearchParams()
   const editId = searchParams.get("id")
@@ -110,7 +111,6 @@ export default function TourEditorPage() {
       </div>
 
       <div className="flex-1 grid lg:grid-cols-2 gap-8 min-h-0">
-        {/* Lado Izquierdo: Formulario */}
         <div className="overflow-y-auto pr-4 pb-10">
           <div className="glass-panel p-6 rounded-2xl">
             <TourForm 
@@ -126,7 +126,6 @@ export default function TourEditorPage() {
           </div>
         </div>
 
-        {/* Lado Derecho: Live Preview */}
         <div className="hidden lg:flex justify-center items-start sticky top-0 overflow-y-auto pb-10">
           <div className="w-full max-w-md pt-4">
             <div className="text-center mb-4">
@@ -137,5 +136,18 @@ export default function TourEditorPage() {
         </div>
       </div>
     </div>
+  )
+}
+
+// 3. Exportamos por defecto envolviendo en el Suspense Boundary para arreglar el Build
+export default function TourEditorPage() {
+  return (
+    <Suspense fallback={
+      <div className="flex items-center justify-center h-full text-muted-foreground p-6">
+        Cargando editor de Andara...
+      </div>
+    }>
+      <TourEditorContent />
+    </Suspense>
   )
 }
