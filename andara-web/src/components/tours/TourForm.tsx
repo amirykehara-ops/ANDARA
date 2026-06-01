@@ -20,9 +20,10 @@ interface TourFormProps {
   onChange: (data: TourData) => void
   onSubmit?: () => void
   onCancel?: () => void
+  errors?: Record<string, string>
 }
 
-export function TourForm({ data, onChange, onSubmit, onCancel }: TourFormProps) {
+export function TourForm({ data, onChange, onSubmit, onCancel, errors }: TourFormProps) {
   const handleChange = (field: keyof TourData, value: string) => {
     onChange({ ...data, [field]: value })
   }
@@ -30,13 +31,15 @@ export function TourForm({ data, onChange, onSubmit, onCancel }: TourFormProps) 
   return (
     <div className="space-y-6">
       <div className="space-y-2">
-        <Label htmlFor="title">Título del Tour</Label>
+        <Label htmlFor="title" className={errors?.title ? "text-destructive" : ""}>Título del Tour</Label>
         <Input 
           id="title" 
           placeholder="Ej: Tour Huacachina VIP" 
           value={data.title}
           onChange={(e) => handleChange("title", e.target.value)}
+          className={errors?.title ? "border-destructive focus-visible:ring-destructive" : ""}
         />
+        {errors?.title && <p className="text-xs text-destructive">{errors.title}</p>}
       </div>
 
       <div className="space-y-2">
@@ -52,14 +55,16 @@ export function TourForm({ data, onChange, onSubmit, onCancel }: TourFormProps) 
 
       <div className="grid grid-cols-2 gap-4">
         <div className="space-y-2">
-          <Label htmlFor="price">Precio</Label>
+          <Label htmlFor="price" className={errors?.price ? "text-destructive" : ""}>Precio</Label>
           <Input 
             id="price" 
             type="number" 
             placeholder="0.00" 
             value={data.price}
             onChange={(e) => handleChange("price", e.target.value)}
+            className={errors?.price ? "border-destructive focus-visible:ring-destructive" : ""}
           />
+          {errors?.price && <p className="text-xs text-destructive">{errors.price}</p>}
         </div>
         <div className="space-y-2">
           <Label htmlFor="currency">Moneda</Label>
@@ -86,14 +91,16 @@ export function TourForm({ data, onChange, onSubmit, onCancel }: TourFormProps) 
           />
         </div>
         <div className="space-y-2">
-          <Label htmlFor="capacity">Capacidad Max.</Label>
+          <Label htmlFor="capacity" className={errors?.capacity ? "text-destructive" : ""}>Capacidad Max.</Label>
           <Input 
             id="capacity" 
             type="number" 
             placeholder="15" 
             value={data.capacity}
             onChange={(e) => handleChange("capacity", e.target.value)}
+            className={errors?.capacity ? "border-destructive focus-visible:ring-destructive" : ""}
           />
+          {errors?.capacity && <p className="text-xs text-destructive">{errors.capacity}</p>}
         </div>
       </div>
 
