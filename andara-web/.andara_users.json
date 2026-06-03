@@ -13,5 +13,10 @@
     "name": "Amir",
     "email": "amirandre2005@gmail.com",
     "passwordHash": "xlkh54"
+  },
+  "luis.enrique11@gmail.com": {
+    "name": "Luis Enrique",
+    "email": "luis.enrique11@gmail.com",
+    "passwordHash": "ei9faa"
   }
 }
