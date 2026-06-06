@@ -39,7 +39,7 @@ export async function updateSession(request: NextRequest) {
     data: { user },
   } = await supabase.auth.getUser()
 
-  if (!user && !request.nextUrl.pathname.startsWith('/login') && !request.nextUrl.pathname.startsWith('/auth')) {
+  if (!user && !request.nextUrl.pathname.startsWith('/login') && !request.nextUrl.pathname.startsWith('/register') && !request.nextUrl.pathname.startsWith('/auth')) {
     // Si no hay usuario y no está en /login, redirigir a /login
     // Para desarrollo, omitimos la redirección si no hay variable de entorno
     if (process.env.NEXT_PUBLIC_SUPABASE_URL) {

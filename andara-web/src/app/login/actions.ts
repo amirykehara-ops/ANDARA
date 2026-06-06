@@ -2,96 +2,48 @@
 
 import { revalidatePath } from 'next/cache'
 import { redirect } from 'next/navigation'
-import { cookies } from 'next/headers'
-import fs from 'fs/promises'
-import path from 'path'
-
-const DB_PATH = path.join(process.cwd(), '.andara_users.json')
-
-type User = { name: string; email: string; passwordHash: string }
-
-async function getDb(): Promise<Record<string, User>> {
-  try {
-    const data = await fs.readFile(DB_PATH, 'utf8')
-    return JSON.parse(data)
-  } catch (error) {
-    // If file doesn't exist, start with empty DB
-    return {}
-  }
-}
-
-async function saveDb(db: Record<string, User>) {
-  await fs.writeFile(DB_PATH, JSON.stringify(db, null, 2), 'utf8')
-}
-
-function simpleHash(str: string): string {
-  let hash = 0
-  for (let i = 0; i < str.length; i++) {
-    const char = str.charCodeAt(i)
-    hash = (hash << 5) - hash + char
-    hash = hash & hash
-  }
-  return Math.abs(hash).toString(36)
-}
-
-function hashPassword(password: string): string {
-  return simpleHash(password + 'andara_salt_2024')
-}
+import { createClient } from '@/utils/supabase/server'
 
 export async function login(formData: FormData) {
-  const email = (formData.get('email') as string).toLowerCase()
+  const supabase = await createClient()
+  const email = formData.get('email') as string
   const password = formData.get('password') as string
-  
-  const db = await getDb()
-  const user = db[email]
 
-  if (!user || user.passwordHash !== hashPassword(password)) {
+  const { error } = await supabase.auth.signInWithPassword({ email, password })
+
+  if (error) {
     redirect('/login?error=credentials')
   }
 
-  const cookieStore = await cookies()
-  cookieStore.set('andara_session', Buffer.from(JSON.stringify({ name: user.name, email })).toString('base64'), {
-    httpOnly: true,
-    secure: false,
-    sameSite: 'lax',
-    maxAge: 60 * 60 * 24 * 7,
-    path: '/',
-  })
-
-  revalidatePath('/')
+  revalidatePath('/', 'layout')
   redirect('/dashboard')
 }
 
 export async function signup(formData: FormData) {
-  const name = formData.get('name') as string
-  const email = (formData.get('email') as string).toLowerCase()
+  const supabase = await createClient()
+  const email = formData.get('email') as string
   const password = formData.get('password') as string
+  const name = formData.get('name') as string
 
-  const db = await getDb()
-
-  if (db[email]) {
-    redirect('/register?error=exists')
-  }
-
-  db[email] = { name, email, passwordHash: hashPassword(password) }
-  await saveDb(db)
-
-  const cookieStore = await cookies()
-  cookieStore.set('andara_session', Buffer.from(JSON.stringify({ name, email })).toString('base64'), {
-    httpOnly: true,
-    secure: false,
-    sameSite: 'lax',
-    maxAge: 60 * 60 * 24 * 7,
-    path: '/',
+  const { error } = await supabase.auth.signUp({
+    email,
+    password,
+    options: {
+      data: { full_name: name }
+    }
   })
+
+  if (error) {
+    redirect('/register?error=' + encodeURIComponent(error.message))
+  }
 
   revalidatePath('/', 'layout')
   redirect('/dashboard')
 }
 
 export async function logout() {
-  const cookieStore = await cookies()
-  cookieStore.delete('andara_session')
+  const supabase = await createClient()
+  await supabase.auth.signOut()
   revalidatePath('/', 'layout')
   redirect('/login')
 }

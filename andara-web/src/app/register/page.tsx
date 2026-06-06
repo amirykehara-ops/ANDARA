@@ -18,57 +18,32 @@ export default function RegisterPage() {
               Comienza a vender tus experiencias en minutos.
             </p>
           </div>
-
           <div className="mt-8">
             <form action={signup} className="space-y-6">
               <div className="space-y-2">
                 <Label htmlFor="name">Nombre Completo</Label>
                 <div className="mt-1">
-                  <Input
-                    id="name"
-                    name="name"
-                    type="text"
-                    required
-                    placeholder="Ej. Juan Pérez"
-                  />
+                  <Input id="name" name="name" type="text" required placeholder="Ej. Juan Pérez" />
                 </div>
               </div>
-
               <div className="space-y-2">
                 <Label htmlFor="email">Correo Electrónico</Label>
                 <div className="mt-1">
-                  <Input
-                    id="email"
-                    name="email"
-                    type="email"
-                    autoComplete="email"
-                    required
-                    placeholder="guia@ejemplo.com"
-                  />
+                  <Input id="email" name="email" type="email" autoComplete="email" required placeholder="guia@ejemplo.com" />
                 </div>
               </div>
-
               <div className="space-y-2">
                 <Label htmlFor="password">Contraseña</Label>
                 <div className="mt-1">
-                  <Input
-                    id="password"
-                    name="password"
-                    type="password"
-                    autoComplete="new-password"
-                    required
-                    placeholder="Mínimo 6 caracteres"
-                  />
+                  <Input id="password" name="password" type="password" autoComplete="new-password" required placeholder="Mínimo 6 caracteres" />
                 </div>
               </div>
-
               <div>
                 <Button type="submit" className="w-full">
                   Crear Cuenta
                 </Button>
               </div>
             </form>
-            
             <div className="mt-6 text-center text-sm text-muted-foreground">
               ¿Ya tienes una cuenta?{' '}
               <Link href="/login" className="font-semibold text-primary hover:underline">
@@ -84,7 +59,7 @@ export default function RegisterPage() {
         <div className="absolute inset-0 bg-gradient-to-t from-background/80 to-transparent z-10"></div>
         <img
           className="absolute inset-0 h-full w-full object-cover"
-          src="https://images.unsplash.com/photo-1547466792-5633a6dd90f1?q=80&w=2000&auto=format&fit=crop"
+          src="https://images.unsplash.com/photo-1580502304784-8985b7eb7260?q=80&w=2000&auto=format&fit=crop"
           alt="Desierto de Huacachina"
         />
         <div className="absolute bottom-12 left-12 right-12 z-20 text-white">

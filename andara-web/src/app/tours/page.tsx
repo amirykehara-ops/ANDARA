@@ -17,7 +17,7 @@ export const defaultTours = [
     currency: "USD",
     duration: "2 horas",
     capacity: 12,
-    imageUrl: "https://images.unsplash.com/photo-1547466792-5633a6dd90f1?w=800&auto=format&fit=crop",
+    imageUrl: "https://images.unsplash.com/photo-1506905925346-21bda4d32df4?w=800&auto=format&fit=crop",
     status: "active" as const
   },
   {
@@ -27,7 +27,7 @@ export const defaultTours = [
     currency: "USD",
     duration: "35 min",
     capacity: 6,
-    imageUrl: "https://images.unsplash.com/photo-1587595431973-160d0d94add1?w=800&auto=format&fit=crop",
+    imageUrl: "https://images.unsplash.com/photo-1531219432768-9f540ce91ef3?w=800&auto=format&fit=crop",
     status: "active" as const
   },
   {
@@ -37,7 +37,7 @@ export const defaultTours = [
     currency: "USD",
     duration: "Half day",
     capacity: 20,
-    imageUrl: "https://images.unsplash.com/photo-1510006851064-e6056cd0e3a8?w=800&auto=format&fit=crop",
+    imageUrl: "https://images.unsplash.com/photo-1548574505-5e239809ee19?w=800&auto=format&fit=crop",
     status: "draft" as const
   }
 ]
