@@ -1,6 +1,6 @@
 import type { NextConfig } from "next";
 const nextConfig: NextConfig = {
-  allowedDevOrigins: ["zaiden-matted-nonbotanically.ngrok-free.dev"],
+  allowedDevOrigins: ["https://andara-andara.vercel.app"],
   images: {
     remotePatterns: [
       {

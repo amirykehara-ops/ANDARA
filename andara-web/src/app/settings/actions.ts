@@ -27,6 +27,7 @@ export async function updateProfile(formData: FormData) {
     .from('profiles')
     .upsert({
       id: user.id,
+      email: user.email,
       name,
       bio,
       location,

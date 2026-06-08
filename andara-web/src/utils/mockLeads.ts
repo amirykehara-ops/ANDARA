@@ -34,7 +34,11 @@ export function seedLeads() {
 
 export function getLeads(): Lead[] {
   if (typeof window === 'undefined') return [];
-  const data = localStorage.getItem(STORAGE_KEY);
+  let data = localStorage.getItem(STORAGE_KEY);
+  if (!data) {
+    seedLeads();
+    data = localStorage.getItem(STORAGE_KEY);
+  }
   return data ? JSON.parse(data) : [];
 }
 
