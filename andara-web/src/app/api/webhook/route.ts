@@ -1,5 +1,5 @@
 import { NextResponse } from "next/server"
-
+export const dynamic = "force-dynamic"
 // ========================================================
 // CONFIGURACIÓN DE PRODUCCIÓN DIRECTA (HARDCODED)
 // ========================================================
