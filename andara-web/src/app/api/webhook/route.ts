@@ -1,10 +1,15 @@
 import { NextResponse } from "next/server"
 
-// ========================================================
-// CONFIGURACIÓN DE PRODUCCIÓN DIRECTA (HARDCODED)
-// ========================================================
-// Definimos el token directo aquí para no depender del panel de Vercel
+// 🚨 COMPORTAMIENTO ULTRA-DINÁMICO PARA EVITAR CACHÉ AJENA EN EL ROUTING
+export const dynamic = 'force-dynamic'
+export const revalidate = 0
+
 const TOKEN_PRODUCCION_META = "AndaraMeta2026" 
+
+// Aseguramos el contenedor en la memoria global de Node independientemente de las recargas en desarrollo
+if (!(global as any).listaLeadsCompartida) {
+  (global as any).listaLeadsCompartida = [];
+}
 
 export async function GET(request: Request) {
   const { searchParams } = new URL(request.url)
@@ -12,23 +17,28 @@ export async function GET(request: Request) {
   const token = searchParams.get("hub.verify_token")
   const challenge = searchParams.get("hub.challenge")
 
-  console.log("🔍 Intentando validar Webhook desde Meta...")
-  console.log(`Token recibido: ${token} | Esperado: ${TOKEN_PRODUCCION_META}`)
-
+  // Si Meta está intentando validar el Webhook (Modo suscripción)
   if (mode === "subscribe" && token === TOKEN_PRODUCCION_META) {
-    console.log("✅ ¡Validación exitosa! Enviando challenge a Meta.")
     return new NextResponse(challenge, { status: 200 })
   }
-  
-  console.log("❌ Validación fallida. Token incorrecto.")
-  return new NextResponse("Forbidden", { status: 403 })
+
+  // Jalar los leads en tiempo de ejecución de la memoria global
+  const listaLeads = (global as any).listaLeadsCompartida || [];
+
+  // Retornamos una respuesta JSON cruda forzando al navegador a omitir cualquier caché interna
+  return new NextResponse(JSON.stringify(listaLeads), {
+    status: 200,
+    headers: {
+      'Content-Type': 'application/json',
+      'Cache-Control': 'no-store, no-cache, must-revalidate, proxy-revalidate',
+    },
+  });
 }
 
 export async function POST(request: Request) {
   try {
     let body: any;
 
-    // 1. LECTURA HÍBRIDA ULTRA-RESISTENTE PARA EVITAR VALORES VACÍOS
     try {
       const rawBody = await request.text()
       if (!rawBody || rawBody.trim() === "") {
@@ -36,11 +46,20 @@ export async function POST(request: Request) {
       }
       body = JSON.parse(rawBody)
     } catch (parseError) {
-      console.log("❌ Error crítico parseando el JSON entrante.")
       return NextResponse.json({ received: true }, { status: 200 })
     }
 
-    // LOG DE CONTROL EN PRODUCCIÓN
+    // 1. CASO COMPRA DE FLUJO: DETECTAR CUANDO UN GUÍA VINCULA SU CUENTA DESDE EL FRONTEND
+    if (body.setup_event === "USER_CONNECTED") {
+      console.log("==================================================")
+      console.log("🚀 ¡UN NUEVO GUÍA HA VINCULADO SU WHATSAPP EN VIVO!");
+      console.log(`🔑 Token de Acceso Otorgado: ${body.accessToken.substring(0, 15)}...`);
+      console.log(`🆔 WhatsApp Business Account ID (WABA): ${body.whatsapp_business_account_id}`);
+      console.log("==================================================")
+      return NextResponse.json({ success: true, message: "Guía vinculado" }, { status: 200 })
+    }
+
+    // LOG DE CONTROL PARA MENSAJES ENTRANTES
     console.log("📦 PAYLOAD ENTERO ENTRANTE:", JSON.stringify(body, null, 2))
     
     let source: "whatsapp" | "instagram" | "facebook" = "whatsapp"
@@ -112,35 +131,37 @@ export async function POST(request: Request) {
       return NextResponse.json({ received: true }, { status: 200 })
     }
 
-    // ========================================================
-    // 3. ENVIAR EL LEAD EN VIVO A SUPABASE (PRODUCCIÓN REAL)
-    // ========================================================
-    try {
-      // Importación dinámica para evitar que Next.js falle si no hay variables cargadas en build-time
-      const { createClient } = await import("@/utils/supabase/server")
-      const supabase = await createClient()
+    console.log(`✨ Lead procesado listo para el CRM: ${nombre} - Msn: ${texto}`);
+    
+    // Construimos el objeto con la estructura que tu frontend KanbanBoard espera leer
+    const nuevoLead = {
+      name: nombre,
+      phone: source === "whatsapp" ? `+${identificador}` : identificador,
+      text: texto,
+      time: new Date().toLocaleTimeString()
+    };
 
-      await supabase
-        .from('leads') // Reemplaza 'leads' por el nombre exacto de tu tabla si es diferente
-        .insert([
-          {
-            name: nombre,
-            source: source,
-            contact: source === "whatsapp" ? `+${identificador}` : `@${nombre.toLowerCase().replace(/\s+/g, '')}`,
-            interest: texto.substring(0, 100),
-            status: "new",
-            date: new Date().toISOString()
-          }
-        ])
-      console.log("💾 ¡Lead inyectado con éxito en Supabase desde Producción Meta!")
-    } catch (supabaseError) {
-      console.error("❌ Falló la inserción en Supabase en el POST:", supabaseError)
+    // Lo guardamos en el arreglo global al principio
+    if ((global as any).listaLeadsCompartida) {
+      (global as any).listaLeadsCompartida.unshift(nuevoLead);
     }
 
-    return NextResponse.json({ received: true, channel: source }, { status: 200 })
+    // 3. RETORNO DIRECTO DEL LEAD PARA SIMULACIÓN EN TIEMPO REAL
+    return NextResponse.json({ 
+      received: true, 
+      channel: source,
+      lead: {
+        name: nombre,
+        source: source,
+        contact: source === "whatsapp" ? `+${identificador}` : `@${nombre.toLowerCase().replace(/\s+/g, '')}`,
+        interest: texto.substring(0, 100),
+        status: "new",
+        date: new Date().toISOString()
+      }
+    }, { status: 200 })
 
   } catch (error) {
-    console.error("❌ Error crítico general en el Webhook:", error)
+    console.error("❌ Error crítico:", error)
     return NextResponse.json({ error: "Internal Server Error" }, { status: 500 })
   }
 }

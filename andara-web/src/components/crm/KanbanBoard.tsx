@@ -5,7 +5,6 @@ import { addLead, getLeads, updateLeadStatus, exportLeadsCSV } from "@/utils/moc
 import { LeadCard, type Lead } from "./LeadCard"
 import { motion, AnimatePresence } from "framer-motion"
 
-// Column definitions for the CRM Kanban board
 const COLUMNS = [
   { id: "new", title: "Nuevos", color: "bg-blue-500" },
   { id: "contacted", title: "Contactados", color: "bg-amber-500" },
@@ -17,132 +16,154 @@ export function KanbanBoard() {
   const [leads, setLeads] = useState<Lead[]>([])
   const [filter, setFilter] = useState<'All' | 'WhatsApp' | 'Instagram' | 'Facebook'>('All')
 
-  // Load persisted leads from localStorage on mount
+  // 1. Cargar leads iniciales guardados en localStorage
   useEffect(() => {
     if (typeof window !== "undefined") {
       const stored = getLeads()
-      setLeads(stored)
+      setLeads(stored as Lead[])
     }
   }, [])
 
-  // Helper principal para simular la inyección del Lead por canal específico
+  // 🚨 2. LECTOR ULTRA-REACTIVO MEJORADO: Genera IDs únicos para forzar el renderizado en pantalla
+  useEffect(() => {
+    console.log("🔌 [KANBAN] Buscando actualizaciones del servidor cada 2s...");
+
+    const revisarWebhooksEnVivo = async () => {
+      try {
+        const res = await fetch(`/api/webhook?t=${Date.now()}`)
+        const nuevosMensajesAPI = await res.json()
+
+        if (Array.isArray(nuevosMensajesAPI) && nuevosMensajesAPI.length > 0) {
+
+          setLeads((currentLeads) => {
+            let copiaLeads = [...currentLeads]
+            let huboCambios = false
+
+            nuevosMensajesAPI.forEach((msg: any) => {
+              if (!msg) return;
+
+              let nombreFinal = msg.name || "Cliente Nuevo"
+              let telefonoFinal = msg.phone || ""
+              let textoFinal = msg.text || ""
+              let fuenteFinal: Lead["source"] = "whatsapp"
+
+              // Extracción desde la estructura real de Meta enviada en tu curl
+              if (msg.entry?.[0]?.changes?.[0]?.value) {
+                const value = msg.entry[0].changes[0].value
+                const messageObj = value.messages?.[0]
+                const contactObj = value.contacts?.[0]
+
+                telefonoFinal = messageObj?.from || contactObj?.wa_id || telefonoFinal
+                nombreFinal = contactObj?.profile?.name || nombreFinal
+                textoFinal = messageObj?.text?.body || textoFinal
+              } else {
+                telefonoFinal = msg.phone || ""
+                nombreFinal = msg.name || "Cliente Nuevo"
+                textoFinal = msg.text || ""
+                if (msg.name?.toLowerCase().includes("messenger")) fuenteFinal = "facebook"
+                if (msg.name?.toLowerCase().includes("ig") || msg.name?.toLowerCase().includes("instagram")) fuenteFinal = "instagram"
+              }
+
+              if (!telefonoFinal) return;
+              const telefonoLimpio = telefonoFinal.startsWith("+") ? telefonoFinal : `+${telefonoFinal}`;
+
+              // Para evitar bucles infinitos visuales, validamos si este texto exacto YA está en el estado local actual
+              const yaExisteEnPantalla = copiaLeads.some(
+                l => l.interest === textoFinal && ((l as any).phone === telefonoLimpio)
+              )
+
+              if (!yaExisteEnPantalla) {
+                // 🔥 SOLUCIÓN CLAVE: Forzamos un ID totalmente dinámico combinando random + timestamp
+                // Esto rompe el bloqueo de duplicados de React provocado por el ID fijo del curl
+                const idUnicoFormateado = `webhook-${Date.now()}-${Math.floor(Math.random() * 1000000)}`;
+
+                const nuevoLeadHibrido: any = {
+                  id: idUnicoFormateado,
+                  name: nombreFinal,
+                  source: fuenteFinal,
+                  phone: telefonoLimpio,
+                  contact: telefonoLimpio,
+                  interest: textoFinal || "Consulta vía Webhook",
+                  status: "new",
+                  date: "Hoy"
+                }
+
+                try {
+                  addLead(nuevoLeadHibrido as any)
+                } catch (storageErr) {
+                  console.warn("Nota de almacenamiento local:", storageErr)
+                }
+
+                console.log("✨ [FRONTEND REDRAW] Tarjeta inyectada al flujo visual:", nuevoLeadHibrido.interest)
+                copiaLeads = [nuevoLeadHibrido as Lead, ...copiaLeads]
+                huboCambios = true
+              }
+            })
+
+            return huboCambios ? copiaLeads : currentLeads
+          })
+        }
+      } catch (err) {
+        console.error("❌ [KANBAN] Error crítico haciendo GET a /api/webhook:", err)
+      }
+    }
+
+    const interval = setInterval(revisarWebhooksEnVivo, 2000)
+    return () => clearInterval(interval)
+  }, [])
+
   const handleAddSpecificLead = async (e: React.MouseEvent<HTMLButtonElement>, chosenSource: Lead["source"]) => {
-    // Evitamos cualquier comportamiento extraño de recarga de la UI
     e.preventDefault()
     e.stopPropagation()
-
-    console.log(`🔥 [BOTÓN] ¡Clic detectado con éxito para simular ${chosenSource}!`);
 
     const names = ["Pedro", "Luisa", "Miguel", "Sofia", "Carlos"]
     const randomName = names[Math.floor(Math.random() * names.length)]
     const randomPhone = `51${Math.floor(900000000 + Math.random() * 100000000)}`
-    
-    // 1. Insertar en el estado local visual respetando tus reglas de negocio
-    const newLead = addLead({
+
+    const payloadMockUtils: any = {
       name: randomName,
       source: chosenSource,
       contact: chosenSource === "whatsapp" ? `+${randomPhone}` : `@${randomName.toLowerCase()}`,
-      interest: "Tour VIP Huacachina",
+      phone: chosenSource === "whatsapp" ? `+${randomPhone}` : `@${randomName.toLowerCase()}`,
+      interest: chosenSource === "whatsapp" ? "Tour VIP Huacachina" : `Consulta desde ${chosenSource}`,
       status: "new",
       date: "Hoy",
-    })
-    setLeads(prev => [...prev, newLead])
+    }
 
-    // 2. CONSTRUIR EL JSON IDÉNTICO QUE META ENVÍA A TU BACKEND SEGÚN EL CANAL
+    const newLead = addLead(payloadMockUtils)
+    const newLeadVisual = { ...newLead, phone: payloadMockUtils.phone, contact: payloadMockUtils.contact } as Lead
+    setLeads(prev => [...prev, newLeadVisual])
+
     let mockMetaPayload = {}
-
     if (chosenSource === "whatsapp") {
       mockMetaPayload = {
         "field": "messages",
         "value": {
           "messaging_product": "whatsapp",
-          "metadata": {
-            "display_phone_number": "16505551111",
-            "phone_number_id": "123456123"
-          },
-          "contacts": [
-            {
-              "profile": { "name": randomName },
-              "wa_id": randomPhone,
-              "user_id": "US.13491208655302741918"
-            }
-          ],
-          "messages": [
-            {
-              "id": `ABGGFlA${Date.now()}`,
-              "timestamp": Math.floor(Date.now() / 1000).toString(),
-              "from": randomPhone,
-              "from_user_id": "US.13491208655302741918",
-              "type": "text",
-              "text": { "body": "Hola, estoy interesado en separar una cita para el Tour VIP." }
-            }
-          ]
-        }
-      }
-   } else if (chosenSource === "facebook") {
-      // Estructura idéntica al botón "Probar" del panel de Meta con el truco del nombre
-      mockMetaPayload = {
-        "_mockName": `${randomName} Messenger`, // Para asegurar compatibilidad externa
-        "sample": {
-          "_mockName": `${randomName} Messenger`, // Inyectado dentro del sample
-          "field": "messages",
-          "value": {
-            "sender": { 
-              "id": randomPhone 
-            },
-            "recipient": { 
-              "id": "123456789" 
-            },
+          "metadata": { "display_phone_number": "16505551111", "phone_number_id": "123456123" },
+          "contacts": [{ "profile": { "name": randomName }, "wa_id": randomPhone }],
+          "messages": [{
+            "id": `ABGGFlA${Date.now()}`,
             "timestamp": Math.floor(Date.now() / 1000).toString(),
-            "message": {
-              "mid": `mid.messenger.test.${Date.now()}`,
-              "text": "Buenas, vi la página de Facebook. ¿Tienen disponibilidad del Tour para este fin de semana?"
-            }
-          }
-        }
-      }
-    
-    } else if (chosenSource === "instagram") {
-      // Formato unificado a través de la API Graph (Facebook Login para Instagram)
-      mockMetaPayload = {
-        "object": "instagram",
-        "entry": [{
-          "id": "INSTAGRAM_BUSINESS_ACCOUNT_ID",
-          "time": Math.floor(Date.now() / 1000),
-          "messaging": [{
-            "sender": { 
-              "id": randomPhone 
-            },
-            "recipient": { 
-              "id": "23245" 
-            },
-            "timestamp": Math.floor(Date.now() / 1000),
-            "message": {
-              "mid": `mid.instagram.test.${Date.now()}`,
-              "text": "Hola, te vi en Instagram Reels y quiero cotizar el paquete completo a Huacachina porfa!"
-            }
+            "from": randomPhone,
+            "type": "text",
+            "text": { "body": "Hola, estoy interesado en separar una cita para el Tour VIP." }
           }]
-        }]
+        }
       }
     }
 
-    // 3. Petición directa al endpoint relativo
     try {
-      console.log(`🚀 [CLIENTE] Despachando JSON de ${chosenSource} hacia /api/webhook...`);
-      const response = await fetch("/api/webhook", {
+      await fetch("/api/webhook", {
         method: "POST",
-        headers: {
-          "Content-Type": "application/json"
-        },
+        headers: { "Content-Type": "application/json" },
         body: JSON.stringify(mockMetaPayload)
       })
-      console.log(`📡 [CLIENTE] Webhook respondió con estatus: ${response.status}`);
     } catch (err) {
-      console.error("❌ [CLIENTE] Error al enviar la petición fetch:", err)
+      console.error("❌ Error fetch:", err)
     }
   }
 
-  // Move lead between columns and persist the change
   const handleMoveLead = (id: string, direction: 1 | -1) => {
     setLeads(currentLeads => {
       const leadIndex = currentLeads.findIndex(l => l.id === id)
@@ -159,7 +180,6 @@ export function KanbanBoard() {
     })
   }
 
-  // Export leads as CSV file
   const handleExportCSV = () => {
     const csv = exportLeadsCSV()
     const blob = new Blob([csv], { type: "text/csv;charset=utf-8;" })
@@ -173,14 +193,11 @@ export function KanbanBoard() {
     URL.revokeObjectURL(url)
   }
 
-  // Apply filter before rendering columns
   const filteredLeads = filter === 'All' ? leads : leads.filter(l => l.source.toLowerCase() === filter.toLowerCase())
 
   return (
     <div className="flex flex-col gap-4 h-full overflow-hidden">
-      {/* Controls */}
       <div className="flex items-center justify-between space-x-4 mb-2">
-        {/* BOTONERA MULTICANAL INTEGRADA */}
         <div className="flex flex-wrap items-center gap-2">
           <button
             type="button"
@@ -189,7 +206,6 @@ export function KanbanBoard() {
           >
             <span>🟢</span> WhatsApp
           </button>
-
           <button
             type="button"
             onClick={(e) => handleAddSpecificLead(e, "facebook")}
@@ -197,7 +213,6 @@ export function KanbanBoard() {
           >
             <span>🔵</span> Messenger
           </button>
-
           <button
             type="button"
             onClick={(e) => handleAddSpecificLead(e, "instagram")}
@@ -205,9 +220,7 @@ export function KanbanBoard() {
           >
             <span>📸</span> Instagram
           </button>
-          
           <span className="text-slate-400 dark:text-slate-600 mx-1">|</span>
-
           <button
             type="button"
             onClick={handleExportCSV}
@@ -216,7 +229,6 @@ export function KanbanBoard() {
             Exportar CSV
           </button>
         </div>
-
         <select
           value={filter}
           onChange={e => setFilter(e.target.value as any)}
@@ -245,15 +257,25 @@ export function KanbanBoard() {
               </div>
 
               <div className="flex-1 p-3 overflow-y-auto space-y-3 bg-slate-50/30 dark:bg-slate-950/20 no-scrollbar">
-                <AnimatePresence>
+                <AnimatePresence mode="popLayout">
                   {columnLeads.map(lead => (
-                    <LeadCard key={lead.id} lead={lead} onMoveLead={handleMoveLead} />
+                    <motion.div
+                      key={lead.id}
+                      layout
+                      initial={{ opacity: 0, y: 20, scale: 0.95 }}
+                      animate={{ opacity: 1, y: 0, scale: 1 }}
+                      exit={{ opacity: 0, x: -20, scale: 0.95 }}
+                      transition={{ type: "spring", stiffness: 500, damping: 30 }}
+                      className="origin-center"
+                    >
+                      <LeadCard lead={lead} onMoveLead={handleMoveLead} />
+                    </motion.div>
                   ))}
                 </AnimatePresence>
                 {columnLeads.length === 0 && (
-                  <div className="h-24 flex items-center justify-center border-2 border-dashed border-border/50 rounded-xl">
+                  <motion.div initial={{ opacity: 0 }} animate={{ opacity: 1 }} className="h-24 flex items-center justify-center border-2 border-dashed border-border/50 rounded-xl">
                     <p className="text-sm text-muted-foreground">Sin prospectos</p>
-                  </div>
+                  </motion.div>
                 )}
               </div>
             </div>
