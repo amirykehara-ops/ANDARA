@@ -1,8 +1,8 @@
 import { NextResponse } from "next/server"
 
+
 // 🚨 COMPORTAMIENTO ULTRA-DINÁMICO PARA EVITAR CACHÉ AJENA EN EL ROUTING
 export const dynamic = 'force-dynamic'
-export const revalidate = 0
 
 const TOKEN_PRODUCCION_META = "AndaraMeta2026" 
 
