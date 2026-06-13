@@ -1,3 +1,4 @@
+// src/utils/supabase/middleware.ts
 import { createServerClient } from '@supabase/ssr'
 import { NextResponse, type NextRequest } from 'next/server'
 
@@ -6,15 +7,13 @@ export async function updateSession(request: NextRequest) {
     request,
   })
 
-  // Si no hay variables de entorno, simplemente continuamos sin Supabase por ahora
-  // Esto permite ver el diseño UI antes de configurar la base de datos real
-  if (!process.env.NEXT_PUBLIC_SUPABASE_URL || !process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY) {
-    return supabaseResponse
-  }
+  // Usar credenciales por defecto de desarrollo si no existen en env
+  const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL || 'https://dhmrtidehbmnyabwveds.supabase.co'
+  const supabaseAnonKey = process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY || 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImRobXJ0aWRlaGJtbnlhYnd2ZWRzIiwicm9sZSI6ImFub24iLCJpYXQiOjE3ODAwMDU1MDMsImV4cCI6MjA5NTU4MTUwM30.wMwMbNRP5nwo08sIWcmN7fNyvK1WepfDwAj_tK-BDYY'
 
   const supabase = createServerClient(
-    process.env.NEXT_PUBLIC_SUPABASE_URL,
-    process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY,
+    supabaseUrl,
+    supabaseAnonKey,
     {
       cookies: {
         getAll() {
@@ -33,23 +32,34 @@ export async function updateSession(request: NextRequest) {
     }
   )
 
-  // IMPORTANTE: Evita escribir lógica después de esto, 
-  // que pueda causar un error antes de retornar supabaseResponse.
+  // Obtener el usuario autenticado actual
   const {
     data: { user },
   } = await supabase.auth.getUser()
+
+  // Escribir/sincronizar la cookie de sesión de Andara para consumo local
+  if (user) {
+    const sessionData = {
+      name: user.user_metadata.full_name || user.email?.split('@')[0] || 'Usuario',
+      email: user.email
+    }
+    const encoded = Buffer.from(JSON.stringify(sessionData)).toString('base64')
+    supabaseResponse.cookies.set('andara_session', encoded, {
+      path: '/',
+      maxAge: 60 * 60 * 24 * 7 // 1 semana
+    })
+  } else {
+    supabaseResponse.cookies.delete('andara_session')
+  }
 
   const path = request.nextUrl.pathname
   const isPublic = path === '/' || path.startsWith('/login') || path.startsWith('/register') || path.startsWith('/auth') || path.startsWith('/api')
 
   if (!user && !isPublic) {
     // Si no hay usuario y no es una ruta pública, redirigir a /login
-    // Para desarrollo, omitimos la redirección si no hay variable de entorno
-    if (process.env.NEXT_PUBLIC_SUPABASE_URL) {
-       const url = request.nextUrl.clone()
-       url.pathname = '/login'
-       return NextResponse.redirect(url)
-    }
+    const url = request.nextUrl.clone()
+    url.pathname = '/login'
+    return NextResponse.redirect(url)
   }
 
   return supabaseResponse

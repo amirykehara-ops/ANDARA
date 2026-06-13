@@ -5,8 +5,17 @@ export async function getSession(): Promise<{ name: string; email: string } | nu
   const session = cookieStore.get('andara_session')
   if (!session) return null
   try {
-    return JSON.parse(Buffer.from(session.value, 'base64').toString('utf-8'))
+    let val = session.value.trim()
+    if (val.startsWith('"') && val.endsWith('"')) {
+      val = val.slice(1, -1)
+    }
+    val = decodeURIComponent(val)
+    if (val.startsWith('"') && val.endsWith('"')) {
+      val = val.slice(1, -1)
+    }
+    return JSON.parse(Buffer.from(val, 'base64').toString('utf-8'))
   } catch {
     return null
   }
 }
+

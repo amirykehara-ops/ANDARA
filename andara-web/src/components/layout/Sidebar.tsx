@@ -1,39 +1,77 @@
+// src/components/layout/Sidebar.tsx
 "use client"
 
 import Link from "next/link"
 import { usePathname } from "next/navigation"
-import { LayoutDashboard, Map, Calendar as CalendarIcon, Users, Settings } from "lucide-react"
+import { LayoutDashboard, MessageSquare, Calendar as CalendarIcon, Users, Settings } from "lucide-react"
 import { cn } from "@/lib/utils"
 import { motion } from "framer-motion"
 import { logout } from "@/app/login/actions"
 import { useState, useEffect } from "react"
+import { getGuideSettings } from "@/lib/services/crm"
 
 const navItems = [
   { name: "Dashboard", href: "/dashboard", icon: LayoutDashboard },
-  { name: "Mis Tours", href: "/tours", icon: Map },
-  { name: "Disponibilidad", href: "/calendar", icon: CalendarIcon },
+  { name: "Inbox Social", href: "/inbox", icon: MessageSquare },
   { name: "Leads CRM", href: "/crm", icon: Users },
+  { name: "Calendario", href: "/calendar", icon: CalendarIcon },
   { name: "Configuración", href: "/settings", icon: Settings },
 ]
 
 export function Sidebar() {
   const pathname = usePathname()
-  const [user, setUser] = useState<{name: string, email: string} | null>(null)
+  const [guideProfile, setGuideProfile] = useState<{name: string, email: string}>({
+    name: 'Guía Demo',
+    email: 'guia@andara.pe'
+  })
+
+  const getSessionFromCookie = () => {
+    if (typeof window === 'undefined') return null
+    try {
+      const match = document.cookie.match(new RegExp('(^| )andara_session=([^;]+)'))
+      if (!match) return null
+      
+      let rawValue = match[2].trim()
+      if (rawValue.startsWith('"') && rawValue.endsWith('"')) {
+        rawValue = rawValue.slice(1, -1)
+      }
+      
+      let decodedValue = decodeURIComponent(rawValue).trim()
+      if (decodedValue.startsWith('"') && decodedValue.endsWith('"')) {
+        decodedValue = decodedValue.slice(1, -1)
+      }
+      
+      const jsonStr = atob(decodedValue)
+      return JSON.parse(jsonStr)
+    } catch (e) {
+      console.error('Failed to parse session cookie', e)
+      return null
+    }
+  }
+
+  const loadProfile = () => {
+    const session = getSessionFromCookie()
+    if (session && session.name && session.email) {
+      setGuideProfile({
+        name: session.name,
+        email: session.email
+      })
+    } else {
+      setGuideProfile({
+        name: 'Guía Demo',
+        email: 'guia@andara.pe'
+      })
+    }
+  }
 
   useEffect(() => {
-    if (typeof window !== 'undefined') {
-      const match = document.cookie.match(new RegExp('(^| )andara_session=([^;]+)'))
-      if (match) {
-        try {
-          const decoded = atob(match[2])
-          const session = JSON.parse(decoded)
-          setUser(session)
-        } catch (e) {
-          console.error('Failed to parse session cookie', e)
-        }
-      }
+    loadProfile()
+    window.addEventListener('andara_db_update', loadProfile)
+    return () => {
+      window.removeEventListener('andara_db_update', loadProfile)
     }
   }, [])
+
 
   return (
     <div className="flex h-screen w-64 flex-col glass-panel border-r border-border/50 z-10">
@@ -80,15 +118,15 @@ export function Sidebar() {
       <div className="border-t border-border/50 p-4 pb-8 space-y-4">
         <div className="flex items-center p-2 rounded-xl hover:bg-muted/50 transition-colors cursor-pointer">
           <div className="h-10 w-10 rounded-full bg-gradient-to-br from-secondary to-amber-500 flex items-center justify-center text-white font-bold text-sm shadow-md border border-white/20">
-            {user ? user.name.charAt(0).toUpperCase() : 'G'}
+            {guideProfile.name.charAt(0).toUpperCase()}
           </div>
           <div className="ml-3 overflow-hidden">
-            <p className="text-sm font-medium text-foreground truncate">{user ? user.name : 'Guía Demo'}</p>
-            <p className="text-xs text-muted-foreground truncate">{user ? user.email : 'guia@andara.pe'}</p>
+            <p className="text-sm font-medium text-foreground truncate">{guideProfile.name}</p>
+            <p className="text-xs text-muted-foreground truncate">{guideProfile.email}</p>
           </div>
         </div>
         <form action={logout}>
-          <button type="submit" className="w-full text-left px-3 py-2 text-sm font-medium text-red-500 hover:text-red-600 hover:bg-red-50 dark:hover:bg-red-950/30 rounded-lg transition-colors">
+          <button type="submit" className="w-full text-left px-3 py-2 text-sm font-medium text-red-500 hover:text-red-600 hover:bg-red-50 dark:hover:bg-red-950/30 rounded-lg transition-colors cursor-pointer">
             Cerrar Sesión
           </button>
         </form>

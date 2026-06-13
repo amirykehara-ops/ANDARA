@@ -1,5 +1,7 @@
 @import "tailwindcss";
 
+@custom-variant dark (&:where(.dark, .dark *));
+
 :root {
   --background: #f0fdf4; /* Light green tint background */
   --foreground: #0f172a;
@@ -38,8 +40,27 @@
   --font-sans: 'Inter', var(--font-geist-sans), sans-serif;
 }
 
+:root.dark {
+  --background: #020617; /* Deep modern black/blue */
+  --foreground: #f8fafc;
+  
+  --card: #0f172a;
+  --card-foreground: #f8fafc;
+  
+  --primary: #2DD4BF; /* Lighter teal for dark mode */
+  --primary-foreground: #020617;
+  
+  --secondary: #FBA94C;
+  --secondary-foreground: #020617;
+  
+  --muted: #1e293b;
+  --muted-foreground: #94a3b8;
+  
+  --border: #1e293b;
+}
+
 @media (prefers-color-scheme: dark) {
-  :root {
+  :root:not(.light) {
     --background: #020617; /* Deep modern black/blue */
     --foreground: #f8fafc;
     
