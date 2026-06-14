@@ -26,8 +26,8 @@ Esta guía te guiará detalladamente para subir ANDARA a internet usando **Verce
 4. **Configuración del proyecto (¡MUY IMPORTANTE!)**:
    - En **Root Directory**, edítalo y selecciona la carpeta **`andara-web`**.
    - Expande la sección **Environment Variables** (Variables de Entorno) y agrega las variables de Supabase:
-     * `NEXT_PUBLIC_SUPABASE_URL` = `<Tu_URL_de_Supabase>`
-     * `NEXT_PUBLIC_SUPABASE_ANON_KEY` = `<Tu_Anon_Key_de_Supabase>`
+     * `NEXT_PUBLIC_SUPABASE_URL` = `https://dhmrtidehbmnyabwveds.supabase.co`
+     * `NEXT_PUBLIC_SUPABASE_ANON_KEY` = `eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImRobXJ0aWRlaGJtbnlhYnd2ZWRzIiwicm9sZSI6ImFub24iLCJpYXQiOjE3ODAwMDU1MDMsImV4cCI6MjA5NTU4MTUwM30.wMwMbNRP5nwo08sIWcmN7fNyvK1WepfDwAj_tK-BDYY`
 5. Haz clic en **Deploy**. ¡En menos de 2 minutos tu web estará activa en una URL tipo `https://andara-crm.vercel.app`!
 
 ---
