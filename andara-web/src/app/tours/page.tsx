@@ -7,40 +7,7 @@ import { Plus, Search } from "lucide-react"
 import { Input } from "@/components/ui/input"
 import Link from "next/link"
 import { motion } from "framer-motion"
-
-// Mock data base fallback
-export const defaultTours = [
-  {
-    id: "1",
-    title: "Tour VIP Huacachina y Buggies",
-    price: "45.00",
-    currency: "USD",
-    duration: "2 horas",
-    capacity: 12,
-    imageUrl: "https://images.unsplash.com/photo-1506905925346-21bda4d32df4?w=800&auto=format&fit=crop",
-    status: "active" as const
-  },
-  {
-    id: "2",
-    title: "Sobrevuelo Líneas de Nazca Clásico",
-    price: "120.00",
-    currency: "USD",
-    duration: "35 min",
-    capacity: 6,
-    imageUrl: "https://images.unsplash.com/photo-1531219432768-9f540ce91ef3?w=800&auto=format&fit=crop",
-    status: "active" as const
-  },
-  {
-    id: "3",
-    title: "Islas Ballestas y Candelabro",
-    price: "25.00",
-    currency: "USD",
-    duration: "Half day",
-    capacity: 20,
-    imageUrl: "https://images.unsplash.com/photo-1548574505-5e239809ee19?w=800&auto=format&fit=crop",
-    status: "draft" as const
-  }
-]
+import { createClient } from "@/utils/supabase/client"
 
 const containerVariants = {
   hidden: { opacity: 0 },
@@ -56,35 +23,39 @@ const itemVariants = {
 } as const
 
 export default function ToursPage() {
-  const [tours, setTours] = useState<typeof defaultTours>([])
+  const [tours, setTours] = useState<any[]>([])
   const [isLoaded, setIsLoaded] = useState(false)
   const [searchTerm, setSearchTerm] = useState("")
 
   useEffect(() => {
-    // Cargar de localStorage
-    const saved = localStorage.getItem("andara_tours")
-    if (saved) {
-      setTours(JSON.parse(saved))
-    } else {
-      setTours(defaultTours)
-      localStorage.setItem("andara_tours", JSON.stringify(defaultTours))
+    const fetchTours = async () => {
+      const supabase = createClient()
+      const { data, error } = await supabase
+        .from("tours")
+        .select("*")
+        .order("created_at", { ascending: false })
+
+      if (!error && data) {
+        setTours(data)
+      }
+      setIsLoaded(true)
     }
-    setIsLoaded(true)
+    fetchTours()
   }, [])
 
-  const handleDelete = (id: string) => {
+  const handleDelete = async (id: string) => {
     if (confirm("¿Estás seguro de que deseas eliminar este tour?")) {
-      const newTours = tours.filter(t => t.id !== id)
-      setTours(newTours)
-      localStorage.setItem("andara_tours", JSON.stringify(newTours))
+      const supabase = createClient()
+      await supabase.from("tours").delete().eq("id", id)
+      setTours(tours.filter(t => t.id !== id))
     }
   }
 
-  const filteredTours = tours.filter(tour => 
+  const filteredTours = tours.filter(tour =>
     tour.title.toLowerCase().includes(searchTerm.toLowerCase())
   )
 
-  if (!isLoaded) return null // Evitar errores de hidratación
+  if (!isLoaded) return null
 
   return (
     <div className="space-y-8">
@@ -105,16 +76,16 @@ export default function ToursPage() {
       <div className="flex items-center">
         <div className="relative w-full max-w-md">
           <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
-          <Input 
-            placeholder="Buscar tour por nombre..." 
-            className="pl-9" 
+          <Input
+            placeholder="Buscar tour por nombre..."
+            className="pl-9"
             value={searchTerm}
             onChange={(e) => setSearchTerm(e.target.value)}
           />
         </div>
       </div>
 
-      <motion.div 
+      <motion.div
         className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6"
         variants={containerVariants}
         initial="hidden"
@@ -123,7 +94,17 @@ export default function ToursPage() {
         {filteredTours.length > 0 ? (
           filteredTours.map(tour => (
             <motion.div key={tour.id} variants={itemVariants}>
-              <TourCard {...tour} onDelete={() => handleDelete(tour.id)} />
+              <TourCard
+                id={tour.id}
+                title={tour.title}
+                price={tour.price}
+                currency={tour.currency}
+                duration={tour.duration}
+                capacity={tour.capacity}
+                imageUrl={tour.image_url}
+                status={tour.status}
+                onDelete={() => handleDelete(tour.id)}
+              />
             </motion.div>
           ))
         ) : (
@@ -133,7 +114,7 @@ export default function ToursPage() {
             </div>
             <h3 className="text-xl font-bold text-foreground mb-2">No se encontraron tours</h3>
             <p className="max-w-sm mb-6 text-sm">
-              No hay resultados para "{searchTerm}". Prueba con otros términos o crea un tour nuevo.
+              Aún no tienes tours creados. ¡Crea tu primera experiencia!
             </p>
             <Link href="/tours/editor">
               <Button>

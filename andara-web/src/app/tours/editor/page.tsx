@@ -6,7 +6,6 @@ import { LivePreview } from "@/components/tours/LivePreview"
 import { ArrowLeft } from "lucide-react"
 import Link from "next/link"
 import { useRouter, useSearchParams } from "next/navigation"
-import { defaultTours } from "@/app/tours/page"
 
 // 2. Cambiamos el nombre de la función a un componente interno
 function TourEditorContent() {
@@ -28,7 +27,7 @@ function TourEditorContent() {
   useEffect(() => {
     if (editId) {
       const saved = localStorage.getItem("andara_tours")
-      const tours = saved ? JSON.parse(saved) : defaultTours
+      const tours = saved ? JSON.parse(saved) : []
       const tourToEdit = tours.find((t: any) => t.id === editId)
       if (tourToEdit) {
         setTourData({
@@ -72,8 +71,7 @@ function TourEditorContent() {
 
     setErrors({})
     const saved = localStorage.getItem("andara_tours")
-    let tours = saved ? JSON.parse(saved) : defaultTours
-
+    let tours = saved ? JSON.parse(saved) : []
     const newTour = {
       id: editId || Date.now().toString(),
       title: tourData.title,
