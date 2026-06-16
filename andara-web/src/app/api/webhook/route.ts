@@ -57,7 +57,7 @@ export async function GET(request: Request) {
   // Intentar también jalar de Supabase (incoming_webhooks) filtrando por el email del guía
   try {
     const { data, error } = await supabase
-      .from('incoming_webhooks')
+      .from('mensajes_entrantes')
       .select('name, phone, text, created_at')
       .eq('guide_email', guideEmail)
       .order('created_at', { ascending: false })
@@ -205,7 +205,7 @@ export async function POST(request: Request) {
     if (targetPageId) {
       try {
         const { data, error } = await supabase
-          .from('linked_pages')
+          .from('paginas_vinculadas')
           .select('guide_email')
           .eq('page_id', targetPageId)
           .single();
@@ -237,7 +237,7 @@ export async function POST(request: Request) {
     // Intentar también guardar en Supabase (incoming_webhooks) para producción en Vercel
     try {
       await supabase
-        .from('incoming_webhooks')
+        .from('mensajes_entrantes')
         .insert([{
           guide_email: guideEmail,
           name: nuevoLead.name,

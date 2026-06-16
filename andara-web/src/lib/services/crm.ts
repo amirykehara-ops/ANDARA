@@ -109,7 +109,7 @@ export async function deleteLead(leadId: string): Promise<void> {
 export async function getMessages(leadId: string): Promise<Message[]> {
   const supabase = createClient();
   const { data, error } = await supabase
-    .from('messages')
+    .from('mensajes')
     .select('*')
     .eq('lead_id', leadId)
     .order('created_at', { ascending: true });
@@ -125,7 +125,7 @@ export async function getMessages(leadId: string): Promise<Message[]> {
 
 export async function saveMessage(message: Omit<Message, 'createdAt'>): Promise<void> {
   const supabase = createClient();
-  await supabase.from('messages').insert({
+  await supabase.from('mensajes').insert({
     id: message.id,
     lead_id: message.lead_id,
     sender: message.sender,
@@ -138,7 +138,7 @@ export async function saveMessage(message: Omit<Message, 'createdAt'>): Promise<
 export async function getCalendarEvents(guideEmail: string): Promise<CalendarEvent[]> {
   const supabase = createClient();
   const { data, error } = await supabase
-    .from('calendar_events')
+    .from('eventos_calendario')
     .select('*')
     .eq('guide_email', guideEmail);
   if (error) { console.error('Error fetching calendar events:', error); return []; }
@@ -154,7 +154,7 @@ export async function getCalendarEvents(guideEmail: string): Promise<CalendarEve
 
 export async function saveCalendarEvent(event: CalendarEvent, guideEmail: string): Promise<void> {
   const supabase = createClient();
-  await supabase.from('calendar_events').upsert({
+  await supabase.from('eventos_calendario').upsert({
     id: event.id,
     lead_id: event.leadId,
     guide_email: guideEmail,
@@ -170,7 +170,7 @@ export async function saveCalendarEvent(event: CalendarEvent, guideEmail: string
 export async function getActivityLogs(guideEmail: string): Promise<ActivityLog[]> {
   const supabase = createClient();
   const { data, error } = await supabase
-    .from('activity_logs')
+    .from('registros_actividad')
     .select('*')
     .eq('guide_email', guideEmail)
     .order('created_at', { ascending: false })
@@ -185,7 +185,7 @@ export async function getActivityLogs(guideEmail: string): Promise<ActivityLog[]
 
 export async function saveActivityLog(log: ActivityLog, guideEmail: string): Promise<void> {
   const supabase = createClient();
-  await supabase.from('activity_logs').insert({
+  await supabase.from('registros_actividad').insert({
     id: log.id,
     guide_email: guideEmail,
     timestamp: log.timestamp,
@@ -198,7 +198,7 @@ export async function saveActivityLog(log: ActivityLog, guideEmail: string): Pro
 export async function getGuideSettings(guideEmail: string): Promise<GuideSettings | null> {
   const supabase = createClient();
   const { data, error } = await supabase
-    .from('guide_settings')
+    .from('configuracion_guia')
     .select('*')
     .eq('id', guideEmail)
     .single();
@@ -208,7 +208,7 @@ export async function getGuideSettings(guideEmail: string): Promise<GuideSetting
 
 export async function saveGuideSettings(settings: GuideSettings): Promise<void> {
   const supabase = createClient();
-  await supabase.from('guide_settings').upsert({
+  await supabase.from('configuracion_guia').upsert({
     id: settings.email,
     ...settings,
     updated_at: new Date().toISOString(),
@@ -220,7 +220,7 @@ export async function saveGuideSettings(settings: GuideSettings): Promise<void> 
 export async function getIncomingWebhooks(guideEmail: string) {
   const supabase = createClient();
   const { data, error } = await supabase
-    .from('incoming_webhooks')
+    .from('mensajes_entrantes')
     .select('*')
     .eq('guide_email', guideEmail)
     .order('created_at', { ascending: false });
@@ -274,7 +274,7 @@ export async function updateLeadDetails(leadId: string, updates: Partial<Lead>):
 
 export async function sendGuideReply(leadId: string, text: string): Promise<void> {
   const supabase = createClient();
-  await supabase.from('messages').insert({
+  await supabase.from('mensajes').insert({
     id: Date.now().toString(),
     lead_id: leadId,
     sender: 'guide',
@@ -294,7 +294,7 @@ export function convertToYYYYMMDD(dateStr: string): string {
 export async function processIncomingMessage(guideEmail: string): Promise<void> {
   const supabase = createClient();
   const { data: webhooks } = await supabase
-    .from('incoming_webhooks')
+    .from('mensajes_entrantes')
     .select('*')
     .eq('guide_email', guideEmail)
     .order('created_at', { ascending: true });
@@ -314,14 +314,14 @@ export async function processIncomingMessage(guideEmail: string): Promise<void> 
       status: 'new',
     });
 
-    await supabase.from('messages').insert({
+    await supabase.from('mensajes').insert({
       id: Date.now().toString(),
       lead_id: leadId,
       sender: 'client',
       text: webhook.text,
     });
 
-    await supabase.from('incoming_webhooks').delete().eq('id', webhook.id);
+    await supabase.from('mensajes_entrantes').delete().eq('id', webhook.id);
   }
 }
 
@@ -347,7 +347,7 @@ export async function processIncomingMessageDirect(
     status: 'new',
   });
 
-  await supabase.from('messages').insert({
+  await supabase.from('mensajes').insert({
     id: Date.now().toString(),
     lead_id: leadId,
     sender: 'client',

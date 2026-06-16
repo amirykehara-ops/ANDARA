@@ -63,7 +63,7 @@ export async function POST(request: Request) {
 
       // Guardar en la tabla linked_pages de Supabase
       const { error: dbError } = await supabase
-        .from('linked_pages')
+        .from('paginas_vinculadas')
         .upsert({
           guide_email: guideEmail,
           page_id: pageId,
