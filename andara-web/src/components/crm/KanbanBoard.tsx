@@ -2,7 +2,7 @@
 "use client"
 
 import { useState, useEffect } from "react"
-import { getLeads, updateLeadStatus, type Lead } from "@/lib/services/crm"
+import { getLeads, updateLeadStatus, saveCalendarEvent, type Lead } from "@/lib/services/crm"
 import { createClient } from "@/utils/supabase/client"
 import { LeadCard } from "./LeadCard"
 import { motion, AnimatePresence } from "framer-motion"
@@ -36,14 +36,31 @@ export function KanbanBoard() {
     }
   }, [])
 
-  const handleMoveLead = (id: string, direction: 1 | -1) => {
+  const handleMoveLead = async (id: string, direction: 1 | -1) => {
     const lead = leads.find(l => l.id === id)
     if (!lead) return
     const currentStatusIndex = COLUMNS.findIndex(c => c.id === lead.status)
     const nextStatusIndex = currentStatusIndex + direction
     if (nextStatusIndex < 0 || nextStatusIndex >= COLUMNS.length) return
     const newStatus = COLUMNS[nextStatusIndex].id
-    updateLeadStatus(id, newStatus)
+
+    await updateLeadStatus(id, newStatus)
+
+    if (newStatus === 'reserved') {
+      const supabase = createClient()
+      const { data: { user } } = await supabase.auth.getUser()
+      await saveCalendarEvent({
+        id: Date.now().toString(),
+        leadId: id,
+        clientName: lead.name,
+        destination: lead.destination || 'Sin destino',
+        date: lead.travelDate || new Date().toISOString().split('T')[0],
+        peopleCount: lead.peopleCount || 1,
+      }, user?.email || '')
+    }
+
+    await loadLeads()
+    window.dispatchEvent(new Event('andara_db_update'))
   }
 
   const handleSelectLead = (lead: Lead) => {
