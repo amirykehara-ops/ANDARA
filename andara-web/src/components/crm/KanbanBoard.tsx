@@ -3,6 +3,7 @@
 
 import { useState, useEffect } from "react"
 import { getLeads, updateLeadStatus, type Lead } from "@/lib/services/crm"
+import { createClient } from "@/utils/supabase/client"
 import { LeadCard } from "./LeadCard"
 import { motion, AnimatePresence } from "framer-motion"
 import { useRouter } from "next/navigation"
@@ -20,8 +21,11 @@ export function KanbanBoard() {
   const [filter, setFilter] = useState<'All' | 'WhatsApp' | 'Instagram' | 'Facebook'>('All')
   const router = useRouter()
 
-  const loadLeads = () => {
-    setLeads(getLeads())
+  const loadLeads = async () => {
+    const supabase = createClient()
+    const { data: { user } } = await supabase.auth.getUser()
+    const data = await getLeads(user?.email || "")
+    setLeads(data)
   }
 
   useEffect(() => {
@@ -43,17 +47,15 @@ export function KanbanBoard() {
   }
 
   const handleSelectLead = (lead: Lead) => {
-    // Redirige al Inbox con el ID del lead en la URL para abrir el chat y editar su ficha
     router.push(`/inbox?leadId=${lead.id}`)
   }
 
-  const filteredLeads = filter === 'All' 
-    ? leads 
+  const filteredLeads = filter === 'All'
+    ? leads
     : leads.filter(l => l.source.toLowerCase() === filter.toLowerCase())
 
   return (
     <div className="flex flex-col gap-6 h-full overflow-hidden relative">
-      {/* Filters bar */}
       <div className="flex justify-end items-center gap-4">
         <div className="flex items-center gap-2">
           <span className="text-xs font-bold text-muted-foreground uppercase tracking-wider">Filtrar:</span>
@@ -70,16 +72,14 @@ export function KanbanBoard() {
         </div>
       </div>
 
-      {/* Columns Grid */}
       <div className="flex-1 flex gap-6 overflow-x-auto pb-4 no-scrollbar">
         {COLUMNS.map(column => {
           const columnLeads = filteredLeads.filter(l => l.status === column.id)
           return (
-            <div 
-              key={column.id} 
+            <div
+              key={column.id}
               className={`flex-shrink-0 w-80 flex flex-col glass-panel rounded-3xl border ${column.border} overflow-hidden shadow-lg ${column.glow}`}
             >
-              {/* Header */}
               <div className="px-4 py-4 border-b border-border/40 flex justify-between items-center bg-background/30 backdrop-blur-md">
                 <div className="flex items-center">
                   <div className={`w-3 h-3 rounded-full ${column.color} mr-2.5 animate-pulse`} />
@@ -90,7 +90,6 @@ export function KanbanBoard() {
                 </span>
               </div>
 
-              {/* Body */}
               <div className="flex-1 p-3 overflow-y-auto space-y-4 bg-slate-50/20 dark:bg-slate-950/20 no-scrollbar">
                 <AnimatePresence mode="popLayout">
                   {columnLeads.map(lead => (
@@ -103,9 +102,9 @@ export function KanbanBoard() {
                       transition={{ type: "spring", stiffness: 500, damping: 30 }}
                       className="origin-center"
                     >
-                      <LeadCard 
-                        lead={lead} 
-                        onMoveLead={handleMoveLead} 
+                      <LeadCard
+                        lead={lead}
+                        onMoveLead={handleMoveLead}
                         onSelectLead={handleSelectLead}
                       />
                     </motion.div>

@@ -1,6 +1,6 @@
 // src/app/dashboard/page.tsx
 "use client"
-
+import { createClient } from "@/utils/supabase/client"
 import { useState, useEffect } from "react"
 import { getLeads, getCalendarEvents, getActivityLogs, type Lead, type ActivityLog } from "@/lib/services/crm"
 import { StatCard } from "@/components/dashboard/StatCard"
@@ -29,10 +29,18 @@ export default function DashboardPage() {
   const [events, setEvents] = useState<any[]>([])
   const [logs, setLogs] = useState<ActivityLog[]>([])
 
-  const loadData = () => {
-    setLeads(getLeads())
-    setEvents(getCalendarEvents())
-    setLogs(getActivityLogs())
+  const loadData = async () => {
+    const supabase = createClient()
+    const { data: { user } } = await supabase.auth.getUser()
+    const email = user?.email || ""
+    const [leads, events, logs] = await Promise.all([
+      getLeads(email),
+      getCalendarEvents(email),
+      getActivityLogs(email),
+    ])
+    setLeads(leads)
+    setEvents(events)
+    setLogs(logs)
   }
 
   useEffect(() => {

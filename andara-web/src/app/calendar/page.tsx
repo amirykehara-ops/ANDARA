@@ -5,6 +5,7 @@ import { useState, useEffect } from "react"
 import { getCalendarEvents, type CalendarEvent } from "@/lib/services/crm"
 import { motion, AnimatePresence } from "framer-motion"
 import { ChevronLeft, ChevronRight, Calendar as CalendarIcon, MapPin, Users, Info } from "lucide-react"
+import { createClient } from "@/utils/supabase/client"
 
 const WEEKDAYS = ["Lunes", "Martes", "Miércoles", "Jueves", "Viernes", "Sábado", "Domingo"]
 
@@ -12,8 +13,11 @@ export default function CalendarPage() {
   const [events, setEvents] = useState<CalendarEvent[]>([])
   const [currentWeekOffset, setCurrentWeekOffset] = useState(0) // 0 is this week, -1 last week, +1 next week
 
-  const loadEvents = () => {
-    setEvents(getCalendarEvents())
+  const loadEvents = async () => {
+    const supabase = createClient()
+    const { data: { user } } = await supabase.auth.getUser()
+    const evts = await getCalendarEvents(user?.email || "")
+    setEvents(evts)
   }
 
   useEffect(() => {

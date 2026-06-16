@@ -4,7 +4,8 @@ import { usePathname } from "next/navigation"
 import { Sidebar } from "./Sidebar"
 import { Header } from "./Header"
 import { useEffect } from "react"
-import { processIncomingMessage } from "@/lib/services/crm"
+import { processIncomingMessageDirect } from "@/lib/services/crm"
+import { createClient } from "@/utils/supabase/client"
 
 export function LayoutWrapper({ children }: { children: React.ReactNode }) {
   const pathname = usePathname()
@@ -43,7 +44,9 @@ export function LayoutWrapper({ children }: { children: React.ReactNode }) {
               }
               
               const phone = msg.phone.trim()
-              processIncomingMessage(msg.name || "Cliente Nuevo", source, phone, msg.text)
+              const supabase = createClient()
+              const { data: { user } } = await supabase.auth.getUser()
+              await processIncomingMessageDirect(msg.name || "Cliente Nuevo", source, phone, msg.text, user?.email || "")
               newSigs.push(sig)
               updated = true
             }

@@ -1,6 +1,6 @@
 // src/app/inbox/page.tsx
 "use client"
-
+import { createClient } from "@/utils/supabase/client"
 import { useState, useEffect, Suspense } from "react"
 import { useSearchParams } from "next/navigation"
 import { 
@@ -50,9 +50,12 @@ function InboxContent() {
   const [profileNotes, setProfileNotes] = useState("")
   const [saveStatus, setSaveStatus] = useState("")
 
-  const loadData = () => {
-    const allConvs = getConversations()
-    const allLeads = getLeads()
+  const loadData = async () => {
+    const supabase = createClient()
+    const { data: { user } } = await supabase.auth.getUser()
+    const email = user?.email || ""
+    const allConvs = await getConversations(email)
+    const allLeads = await getLeads(email)
     setConversations(allConvs)
     setLeads(allLeads)
     
@@ -89,9 +92,12 @@ function InboxContent() {
     }
   }, [selectedLeadId, activeLead])
 
-  const handleSaveProfile = (e: React.FormEvent) => {
+  const handleSaveProfile = async (e: React.FormEvent) => {
     e.preventDefault()
     if (!activeLead) return
+    const supabase = createClient()
+    const { data: { user } } = await supabase.auth.getUser()
+    const email = user?.email || ""
 
     // 1. Si el estado cambia, procesar la transición primero para registrar logs y calendario
     if (profileStatus !== activeLead.status) {
@@ -99,7 +105,7 @@ function InboxContent() {
     }
 
     // 2. Refrescar el lead desde el localStorage para tener el estado actualizado, luego guardar detalles
-    const refreshedLeads = getLeads()
+    const refreshedLeads = await getLeads(email)
     const freshLead = refreshedLeads.find(l => l.id === activeLead.id) || activeLead
 
     const updated: Lead = {
@@ -112,7 +118,7 @@ function InboxContent() {
       notes: profileNotes
     }
 
-    updateLeadDetails(updated)
+    updateLeadDetails(updated.id, updated)
 
     setSaveStatus("✅ Guardado")
     setTimeout(() => setSaveStatus(""), 2000)
