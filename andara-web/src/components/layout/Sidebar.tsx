@@ -8,7 +8,7 @@ import { cn } from "@/lib/utils"
 import { motion } from "framer-motion"
 import { logout } from "@/app/login/actions"
 import { useState, useEffect } from "react"
-import { getGuideSettings } from "@/lib/services/crm"
+import { createClient } from "@/utils/supabase/client"
 
 const navItems = [
   { name: "Dashboard", href: "/dashboard", icon: LayoutDashboard },
@@ -25,41 +25,13 @@ export function Sidebar() {
     email: 'guia@andara.pe'
   })
 
-  const getSessionFromCookie = () => {
-    if (typeof window === 'undefined') return null
-    try {
-      const match = document.cookie.match(new RegExp('(^| )andara_session=([^;]+)'))
-      if (!match) return null
-      
-      let rawValue = match[2].trim()
-      if (rawValue.startsWith('"') && rawValue.endsWith('"')) {
-        rawValue = rawValue.slice(1, -1)
-      }
-      
-      let decodedValue = decodeURIComponent(rawValue).trim()
-      if (decodedValue.startsWith('"') && decodedValue.endsWith('"')) {
-        decodedValue = decodedValue.slice(1, -1)
-      }
-      
-      const jsonStr = atob(decodedValue)
-      return JSON.parse(jsonStr)
-    } catch (e) {
-      console.error('Failed to parse session cookie', e)
-      return null
-    }
-  }
-
-  const loadProfile = () => {
-    const session = getSessionFromCookie()
-    if (session && session.name && session.email) {
+  const loadProfile = async () => {
+    const supabase = createClient()
+    const { data: { user } } = await supabase.auth.getUser()
+    if (user) {
       setGuideProfile({
-        name: session.name,
-        email: session.email
-      })
-    } else {
-      setGuideProfile({
-        name: 'Guía Demo',
-        email: 'guia@andara.pe'
+        name: user.user_metadata?.full_name || user.email?.split('@')[0] || 'Guía Demo',
+        email: user.email || 'guia@andara.pe'
       })
     }
   }
@@ -71,7 +43,6 @@ export function Sidebar() {
       window.removeEventListener('andara_db_update', loadProfile)
     }
   }, [])
-
 
   return (
     <div className="flex h-screen w-64 flex-col glass-panel border-r border-border/50 z-10">
