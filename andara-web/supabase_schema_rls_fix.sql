@@ -1,8 +1,11 @@
 -- =========================================================================
--- ANDARA CRM - SQL RLS Fix for Translated Tables in Supabase
+-- ANDARA CRM - SQL Schema Update & RLS Fix in Supabase
 -- Copy and paste this script into your Supabase SQL Editor and click 'Run'
--- to authorize access to the new Spanish tables (paginas_vinculadas, etc.)
+-- to authorize access to the new Spanish tables and add fb_user_name column.
 -- =========================================================================
+
+-- 0. Update Table Structure
+ALTER TABLE IF EXISTS public.paginas_vinculadas ADD COLUMN IF NOT EXISTS fb_user_name TEXT;
 
 -- 1. Enable RLS on the new Spanish tables
 ALTER TABLE IF EXISTS public.leads ENABLE ROW LEVEL SECURITY;

@@ -24,6 +24,7 @@ export default function SettingsPage() {
   const [saveStatus, setSaveStatus] = useState("")
   const [status, setStatus] = useState("Desconectado")
   const [wabaId, setWabaId] = useState("")
+  const [fbUserName, setFbUserName] = useState("")
   const [fbReady, setFbReady] = useState(false)
 
   useEffect(() => {
@@ -51,16 +52,22 @@ export default function SettingsPage() {
       try {
         const { data: pagesData, error: pagesError } = await supabase
           .from('paginas_vinculadas')
-          .select('page_name')
+          .select('page_name, fb_user_name')
           .eq('guide_email', userEmail)
 
+        if (pagesError) {
+          console.error("Error al obtener paginas_vinculadas de Supabase:", pagesError.message)
+        }
+
         if (!pagesError && pagesData && pagesData.length > 0) {
-          setStatus("✅ Páginas vinculadas con éxito")
+          setStatus("Conectado")
           const names = pagesData.map((p: any) => p.page_name).join(", ")
           setWabaId(names)
+          setFbUserName(pagesData[0].fb_user_name || "Cuenta de Facebook")
         } else {
           setStatus("Desconectado")
           setWabaId("")
+          setFbUserName("")
         }
       } catch (err) {
         console.error("Error cargando páginas vinculadas desde Supabase:", err)
@@ -107,7 +114,8 @@ export default function SettingsPage() {
         .then(res => res.json())
         .then(data => {
           if (data.success) {
-            setStatus("✅ Páginas vinculadas con éxito")
+            setStatus("Conectado")
+            setFbUserName(data.fbUserName || "Cuenta de Facebook")
             if (data.pages && data.pages.length > 0) {
               const names = data.pages.map((p: any) => p.name).join(", ")
               setWabaId(names)
@@ -240,18 +248,36 @@ export default function SettingsPage() {
           <p className="text-sm text-muted-foreground leading-relaxed">
             Vincula tus páginas comerciales de Facebook para recibir chats de Messenger e Instagram en Andara CRM.
           </p>
-          <div className="p-4 bg-muted/40 border border-border/50 rounded-2xl flex flex-col sm:flex-row sm:items-center justify-between gap-2">
-            <div>
-              <p className="text-xs text-muted-foreground uppercase font-mono tracking-wider">Estado del canal</p>
-              <p className="text-sm font-semibold mt-0.5">{status}</p>
-            </div>
-            {wabaId && (
-              <div className="text-left sm:text-right">
-                <p className="text-xs text-muted-foreground uppercase font-mono tracking-wider">Páginas Vinculadas</p>
-                <p className="text-xs font-mono text-emerald-500 mt-0.5 max-w-[180px] truncate" title={wabaId}>{wabaId}</p>
+          {wabaId ? (
+            <div className="p-5 bg-muted/40 border border-border/50 rounded-2xl space-y-3">
+              <div className="flex justify-between items-center pb-2 border-b border-border/20">
+                <div>
+                  <p className="text-xs text-muted-foreground uppercase font-mono tracking-wider">Estado del canal</p>
+                  <p className="text-sm font-bold mt-0.5 text-emerald-500 flex items-center gap-1.5">
+                    <span className="w-2.5 h-2.5 rounded-full bg-emerald-500 animate-pulse" />
+                    Conectado
+                  </p>
+                </div>
               </div>
-            )}
-          </div>
+              <div className="grid grid-cols-1 sm:grid-cols-2 gap-4 pt-1 text-sm">
+                <div>
+                  <p className="text-xs text-muted-foreground uppercase font-mono tracking-wider">Nombre</p>
+                  <p className="font-semibold text-foreground mt-0.5">{fbUserName}</p>
+                </div>
+                <div>
+                  <p className="text-xs text-muted-foreground uppercase font-mono tracking-wider">Página vinculada</p>
+                  <p className="font-semibold text-primary mt-0.5">{wabaId}</p>
+                </div>
+              </div>
+            </div>
+          ) : (
+            <div className="p-4 bg-muted/40 border border-border/50 rounded-2xl flex items-center justify-between">
+              <div>
+                <p className="text-xs text-muted-foreground uppercase font-mono tracking-wider">Estado del canal</p>
+                <p className="text-sm font-semibold mt-0.5 text-muted-foreground">{status}</p>
+              </div>
+            </div>
+          )}
           <Button
             type="button"
             onClick={handleFBLogin}

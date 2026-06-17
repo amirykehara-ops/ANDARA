@@ -16,7 +16,20 @@ export async function POST(request: Request) {
 
     console.log(`🔗 Iniciando vinculación de Facebook para el guía: ${guideEmail}`);
 
-    // 1. Obtener las páginas de Facebook administradas por el usuario
+    // 1. Obtener el nombre del usuario de Facebook
+    let fbUserName = "Cuenta de Facebook"
+    try {
+      const meUrl = `https://graph.facebook.com/v25.0/me?fields=name&access_token=${accessToken}`
+      const meRes = await fetch(meUrl)
+      if (meRes.ok) {
+        const meData = await meRes.json()
+        fbUserName = meData.name || "Cuenta de Facebook"
+      }
+    } catch (errMe) {
+      console.warn("⚠️ Error obteniendo nombre de usuario de Facebook:", errMe)
+    }
+
+    // 2. Obtener las páginas de Facebook administradas por el usuario
     const accountsUrl = `https://graph.facebook.com/v25.0/me/accounts?access_token=${accessToken}`
     const accountsRes = await fetch(accountsUrl)
     
@@ -30,12 +43,12 @@ export async function POST(request: Request) {
     const pages = accountsData.data || []
 
     if (pages.length === 0) {
-      return NextResponse.json({ success: true, pages: [], message: "No Pages found for this user account" })
+      return NextResponse.json({ success: true, pages: [], fbUserName, message: "No Pages found for this user account" })
     }
 
     const connectedPages = []
 
-    // 2. Para cada página, suscribirla al Webhook de ANDARA e insertarla en Supabase
+    // 3. Para cada página, suscribirla al Webhook de ANDARA e insertarla en Supabase
     for (const page of pages) {
       const pageId = page.id
       const pageName = page.name
@@ -61,7 +74,7 @@ export async function POST(request: Request) {
         console.log(`✅ Página ${pageName} suscrita con éxito en Meta.`);
       }
 
-      // Guardar en la tabla linked_pages de Supabase
+      // Guardar en la tabla paginas_vinculadas de Supabase
       const { error: dbError } = await supabase
         .from('paginas_vinculadas')
         .upsert({
@@ -69,7 +82,8 @@ export async function POST(request: Request) {
           page_id: pageId,
           page_name: pageName,
           page_access_token: pageAccessToken,
-          platform: 'facebook'
+          platform: 'facebook',
+          fb_user_name: fbUserName
         }, { onConflict: 'page_id' })
 
       if (dbError) {
@@ -82,7 +96,8 @@ export async function POST(request: Request) {
     return NextResponse.json({
       success: true,
       message: `Vinculación completada. Se conectaron ${connectedPages.length} página(s).`,
-      pages: connectedPages
+      pages: connectedPages,
+      fbUserName
     })
 
   } catch (e: any) {
