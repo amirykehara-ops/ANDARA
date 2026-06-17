@@ -10,6 +10,7 @@ import {
   updateLeadStatus, 
   sendGuideReply, 
   convertToYYYYMMDD,
+  deleteLead,
   type Lead, 
   type Conversation 
 } from "@/lib/services/crm"
@@ -101,7 +102,7 @@ function InboxContent() {
 
     // 1. Si el estado cambia, procesar la transición primero para registrar logs y calendario
     if (profileStatus !== activeLead.status) {
-      updateLeadStatus(activeLead.id, profileStatus)
+      await updateLeadStatus(activeLead.id, profileStatus)
     }
 
     // 2. Refrescar el lead desde el localStorage para tener el estado actualizado, luego guardar detalles
@@ -118,22 +119,46 @@ function InboxContent() {
       notes: profileNotes
     }
 
-    updateLeadDetails(updated.id, updated)
+    await updateLeadDetails(updated.id, updated)
+
+    // Notificar actualización de base de datos
+    window.dispatchEvent(new Event('andara_db_update'))
+    await loadData()
 
     setSaveStatus("✅ Guardado")
     setTimeout(() => setSaveStatus(""), 2000)
   }
 
-  const handleSendReply = () => {
+  const handleDeleteLead = async () => {
+    if (!activeLead) return
+    if (confirm(`¿Estás seguro de que deseas eliminar permanentemente a "${activeLead.name}"? Esta acción borrará todas sus conversaciones.`)) {
+      await deleteLead(activeLead.id)
+      
+      // Notificar actualización de base de datos
+      window.dispatchEvent(new Event('andara_db_update'))
+      
+      setSelectedLeadId(null)
+      await loadData()
+    }
+  }
+
+  const handleSendReply = async () => {
     if (!selectedLeadId || !replyText.trim()) return
     
+    const textToSend = replyText
+    setReplyText("")
+    
     // Add visual reply to chat history
-    sendGuideReply(selectedLeadId, replyText)
+    await sendGuideReply(selectedLeadId, textToSend)
+    
+    // Notificar actualización de base de datos
+    window.dispatchEvent(new Event('andara_db_update'))
+    await loadData()
     
     // Simular redirección al canal oficial
     let url = "https://web.whatsapp.com/"
     if (activeLead?.source === "whatsapp") {
-      url = `https://wa.me/${activeLead.phone.replace(/[^0-9]/g, '')}?text=${encodeURIComponent(replyText)}`
+      url = `https://wa.me/${activeLead.phone.replace(/[^0-9]/g, '')}?text=${encodeURIComponent(textToSend)}`
     } else if (activeLead?.source === "instagram") {
       url = `https://www.instagram.com/direct/inbox/`
     } else if (activeLead?.source === "facebook") {
@@ -141,7 +166,6 @@ function InboxContent() {
     }
     
     window.open(url, "_blank")
-    setReplyText("")
   }
 
   // Filter conversations
@@ -476,6 +500,14 @@ function InboxContent() {
             >
               <Save className="w-4 h-4" />
               <span>Guardar Perfil</span>
+            </button>
+
+            <button
+              type="button"
+              onClick={handleDeleteLead}
+              className="w-full py-3 mt-2 bg-red-500/10 hover:bg-red-500/20 text-red-500 border border-red-500/20 font-semibold rounded-xl text-sm transition flex items-center justify-center gap-2 cursor-pointer"
+            >
+              <span>Eliminar Lead</span>
             </button>
           </form>
         ) : (

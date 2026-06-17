@@ -54,6 +54,7 @@ export function LayoutWrapper({ children }: { children: React.ReactNode }) {
 
           if (updated) {
             localStorage.setItem('andara_processed_sigs', JSON.stringify(newSigs))
+            window.dispatchEvent(new Event('andara_db_update'))
           }
         }
       } catch (e) {
