@@ -46,19 +46,6 @@ export function KanbanBoard() {
 
     await updateLeadStatus(id, newStatus)
 
-    if (newStatus === 'reserved') {
-      const supabase = createClient()
-      const { data: { user } } = await supabase.auth.getUser()
-      await saveCalendarEvent({
-        id: Date.now().toString(),
-        leadId: id,
-        clientName: lead.name,
-        destination: lead.destination || 'Sin destino',
-        date: lead.travelDate || new Date().toISOString().split('T')[0],
-        peopleCount: lead.peopleCount || 1,
-      }, user?.email || '')
-    }
-
     await loadLeads()
     window.dispatchEvent(new Event('andara_db_update'))
   }

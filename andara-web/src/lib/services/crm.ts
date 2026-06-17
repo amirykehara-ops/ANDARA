@@ -170,14 +170,22 @@ export async function updateLeadStatus(leadId: string, status: Lead['status']): 
   let dbLead = null;
   try {
     const supabase = createClient();
-    const { data } = await supabase.from('leads').select('name, guide_email, status').eq('id', leadId).single();
+    const { data } = await supabase.from('leads').select('name, guide_email, status, destination, travel_date, people_count').eq('id', leadId).single();
     dbLead = data;
     await supabase.from('leads').update({ status }).eq('id', leadId);
   } catch (e) {
     console.warn("Supabase updateLeadStatus error, updated locally:", e);
   }
 
-  const finalLead = dbLead || lead;
+  const finalLead = dbLead ? {
+    name: dbLead.name,
+    guide_email: dbLead.guide_email,
+    status: dbLead.status,
+    destination: dbLead.destination,
+    travelDate: dbLead.travel_date,
+    peopleCount: dbLead.people_count
+  } : lead;
+
   if (finalLead && finalLead.guide_email) {
     const statusNames: Record<string, string> = {
       new: "Nuevo",
@@ -194,6 +202,22 @@ export async function updateLeadStatus(leadId: string, status: Lead['status']): 
       timestamp: new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' }),
       text: `Prospecto ${finalLead.name} movido de "${oldStatusName}" a "${newStatusName}".`
     }, finalLead.guide_email);
+
+    // Si el estado cambia a reservado, guardar evento en el calendario automáticamente si no existe ya
+    if (status === 'reserved') {
+      const localEvents = getLocal<CalendarEvent[]>('andara_calendar', []);
+      const eventExists = localEvents.some(e => e.leadId === leadId);
+      if (!eventExists) {
+        await saveCalendarEvent({
+          id: Date.now().toString(),
+          leadId: leadId,
+          clientName: finalLead.name,
+          destination: finalLead.destination || 'Sin destino',
+          date: finalLead.travelDate || new Date().toISOString().split('T')[0],
+          peopleCount: finalLead.peopleCount || 1,
+        }, finalLead.guide_email);
+      }
+    }
   }
 }
 
