@@ -16,7 +16,11 @@ export function LayoutWrapper({ children }: { children: React.ReactNode }) {
 
     const pollWebhooks = async () => {
       try {
-        const res = await fetch(`/api/webhook?t=${Date.now()}`)
+        const supabase = createClient()
+        const { data: { user } } = await supabase.auth.getUser()
+        if (!user || !user.email) return;
+
+        const res = await fetch(`/api/webhook?guide_email=${encodeURIComponent(user.email)}&t=${Date.now()}`)
         if (!res.ok) return;
         const data = await res.json()
         
@@ -44,9 +48,16 @@ export function LayoutWrapper({ children }: { children: React.ReactNode }) {
               }
               
               const phone = msg.phone.trim()
-              const supabase = createClient()
-              const { data: { user } } = await supabase.auth.getUser()
-              await processIncomingMessageDirect(msg.name || "Cliente Nuevo", source, phone, msg.text, user?.email || "")
+              await processIncomingMessageDirect(msg.name || "Cliente Nuevo", source, phone, msg.text, user.email)
+              
+              if (msg.id) {
+                try {
+                  await supabase.from('mensajes_entrantes').delete().eq('id', msg.id)
+                } catch (dbErr) {
+                  console.error("Error al borrar mensaje procesado de Supabase:", dbErr)
+                }
+              }
+              
               newSigs.push(sig)
               updated = true
             }

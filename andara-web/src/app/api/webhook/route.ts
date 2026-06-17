@@ -31,34 +31,41 @@ export async function GET(request: Request) {
   // Jalar los leads en tiempo de ejecución de la memoria global
   let listaLeads = (global as any).listaLeadsCompartida || [];
 
-  // Obtener el email del guía logueado desde la cookie de sesión
-  let guideEmail = "guia@andara.pe"; // Fallback por defecto
-  try {
-    const cookieStore = await cookies()
-    const sessionCookie = cookieStore.get('andara_session')
-    if (sessionCookie) {
-      let val = sessionCookie.value.trim()
-      if (val.startsWith('"') && val.endsWith('"')) {
-        val = val.slice(1, -1)
+  // Obtener el email del guía logueado desde la cookie de sesión o el parámetro de consulta (guide_email)
+  let guideEmail = searchParams.get("guide_email") || "";
+  
+  if (!guideEmail) {
+    try {
+      const cookieStore = await cookies()
+      const sessionCookie = cookieStore.get('andara_session')
+      if (sessionCookie) {
+        let val = sessionCookie.value.trim()
+        if (val.startsWith('"') && val.endsWith('"')) {
+          val = val.slice(1, -1)
+        }
+        val = decodeURIComponent(val)
+        if (val.startsWith('"') && val.endsWith('"')) {
+          val = val.slice(1, -1)
+        }
+        const session = JSON.parse(Buffer.from(val, 'base64').toString('utf-8'))
+        if (session && session.email) {
+          guideEmail = session.email;
+        }
       }
-      val = decodeURIComponent(val)
-      if (val.startsWith('"') && val.endsWith('"')) {
-        val = val.slice(1, -1)
-      }
-      const session = JSON.parse(Buffer.from(val, 'base64').toString('utf-8'))
-      if (session && session.email) {
-        guideEmail = session.email;
-      }
+    } catch (e) {
+      console.error("Error al decodificar la cookie de sesión en Webhook GET:", e);
     }
-  } catch (e) {
-    console.error("Error al decodificar la cookie de sesión en Webhook GET:", e);
   }
 
-  // Intentar también jalar de Supabase (incoming_webhooks) filtrando por el email del guía
+  if (!guideEmail) {
+    guideEmail = "guia@andara.pe"; // Fallback por defecto
+  }
+
+  // Intentar también jalar de Supabase (mensajes_entrantes) filtrando por el email del guía
   try {
     const { data, error } = await supabase
       .from('mensajes_entrantes')
-      .select('name, phone, text, created_at')
+      .select('id, name, phone, text, created_at')
       .eq('guide_email', guideEmail)
       .order('created_at', { ascending: false })
       .limit(50);
@@ -66,6 +73,7 @@ export async function GET(request: Request) {
     if (!error && data && data.length > 0) {
       // Mapear al formato que espera el frontend (con campo time)
       const dbLeads = data.map(item => ({
+        id: item.id,
         name: item.name,
         phone: item.phone,
         text: item.text,
