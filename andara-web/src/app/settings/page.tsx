@@ -46,6 +46,25 @@ export default function SettingsPage() {
         setLanguages((settings as any).languages || "Español, Inglés")
         setLicense((settings as any).license || "DIRTUR-ICA-00123")
       }
+
+      // Cargar páginas de Facebook vinculadas desde la base de datos
+      try {
+        const { data: pagesData, error: pagesError } = await supabase
+          .from('linked_pages')
+          .select('page_name')
+          .eq('guide_email', userEmail)
+
+        if (!pagesError && pagesData && pagesData.length > 0) {
+          setStatus("✅ Páginas vinculadas con éxito")
+          const names = pagesData.map((p: any) => p.page_name).join(", ")
+          setWabaId(names)
+        } else {
+          setStatus("Desconectado")
+          setWabaId("")
+        }
+      } catch (err) {
+        console.error("Error cargando páginas vinculadas desde Supabase:", err)
+      }
     }
     init()
   }, [])
