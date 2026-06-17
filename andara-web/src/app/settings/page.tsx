@@ -125,7 +125,8 @@ export default function SettingsPage() {
           console.error("Error al conectar con backend:", err)
         })
       } else {
-        console.log('El usuario canceló el inicio de sesión.');
+        setStatus("Desconectado")
+        alert("No se pudo iniciar sesión con Facebook.\n\nNota: Si estás usando el modo de navegación Incógnita, asegúrate de permitir las cookies de terceros en tu navegador, ya que el SDK de Meta las requiere para validar tu identidad.")
       }
     }, {
       config_id: '1791723998759589'
@@ -254,10 +255,21 @@ export default function SettingsPage() {
           <Button
             type="button"
             onClick={handleFBLogin}
-            disabled={!fbReady}
-            className={`w-full text-white rounded-xl py-6 font-semibold shadow-lg transition-all cursor-pointer ${fbReady ? 'bg-[#1877f2] hover:bg-[#166fe5]' : 'bg-gray-600 cursor-not-allowed'}`}
+            disabled={!fbReady || !!wabaId}
+            className={`w-full text-white rounded-xl py-6 font-semibold shadow-lg transition-all cursor-pointer ${
+              wabaId 
+                ? 'bg-emerald-600 cursor-not-allowed' 
+                : fbReady 
+                  ? 'bg-[#1877f2] hover:bg-[#166fe5]' 
+                  : 'bg-gray-600 cursor-not-allowed'
+            }`}
           >
-            {fbReady ? "Conectar con Facebook Business" : "Cargando entorno seguro de Meta..."}
+            {wabaId 
+              ? "✅ Conectado con Facebook Business" 
+              : fbReady 
+                ? "Conectar con Facebook Business" 
+                : "Cargando entorno seguro de Meta..."
+            }
           </Button>
         </div>
       </motion.div>
