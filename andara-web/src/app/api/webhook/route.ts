@@ -202,6 +202,27 @@ export async function POST(request: Request) {
     }
 
     let guideEmail = "guia@andara.pe"; // Fallback por defecto
+    try {
+      const cookieStore = await cookies()
+      const sessionCookie = cookieStore.get('andara_session')
+      if (sessionCookie) {
+        let val = sessionCookie.value.trim()
+        if (val.startsWith('"') && val.endsWith('"')) {
+          val = val.slice(1, -1)
+        }
+        val = decodeURIComponent(val)
+        if (val.startsWith('"') && val.endsWith('"')) {
+          val = val.slice(1, -1)
+        }
+        const session = JSON.parse(Buffer.from(val, 'base64').toString('utf-8'))
+        if (session && session.email) {
+          guideEmail = session.email;
+        }
+      }
+    } catch (e) {
+      console.error("Error decodificando la cookie de sesión en Webhook POST:", e);
+    }
+
     if (targetPageId) {
       try {
         const { data, error } = await supabase
