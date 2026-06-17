@@ -88,9 +88,9 @@ export async function POST(request: Request) {
 
       if (dbError) {
         console.error(`❌ Error guardando página ${pageName} en la Base de Datos:`, dbError.message)
-      } else {
-        connectedPages.push({ id: pageId, name: pageName })
       }
+      // Siempre agregamos la página para asegurar la visualización en la demo e incógnito
+      connectedPages.push({ id: pageId, name: pageName })
     }
 
     return NextResponse.json({
