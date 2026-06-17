@@ -48,26 +48,49 @@ export default function SettingsPage() {
         setLicense((settings as any).license || "DIRTUR-ICA-00123")
       }
 
-      // Cargar páginas de Facebook vinculadas desde la base de datos
+      // 1. Cargar primero de local storage como fallback inmediato
+      if (typeof window !== 'undefined') {
+        const storedStatus = localStorage.getItem('andara_fb_status')
+        const storedPages = localStorage.getItem('andara_fb_pages')
+        const storedFbUser = localStorage.getItem('andara_fb_user_name')
+
+        if (storedStatus && storedPages) {
+          setStatus(storedStatus)
+          setWabaId(storedPages)
+          setFbUserName(storedFbUser || "Cuenta de Facebook")
+        }
+      }
+
+      // 2. Intentar cargar/sincronizar desde la base de datos de Supabase
       try {
         const { data: pagesData, error: pagesError } = await supabase
           .from('paginas_vinculadas')
           .select('page_name, fb_user_name')
           .eq('guide_email', userEmail)
 
-        if (pagesError) {
-          console.error("Error al obtener paginas_vinculadas de Supabase:", pagesError.message)
-        }
+        if (!pagesError) {
+          if (pagesData && pagesData.length > 0) {
+            setStatus("Conectado")
+            const names = pagesData.map((p: any) => p.page_name).join(", ")
+            setWabaId(names)
+            const fbName = pagesData[0].fb_user_name || "Cuenta de Facebook"
+            setFbUserName(fbName)
 
-        if (!pagesError && pagesData && pagesData.length > 0) {
-          setStatus("Conectado")
-          const names = pagesData.map((p: any) => p.page_name).join(", ")
-          setWabaId(names)
-          setFbUserName(pagesData[0].fb_user_name || "Cuenta de Facebook")
+            // Sincronizar local storage
+            localStorage.setItem('andara_fb_status', 'Conectado')
+            localStorage.setItem('andara_fb_pages', names)
+            localStorage.setItem('andara_fb_user_name', fbName)
+          } else {
+            // Si la consulta fue exitosa pero no hay datos, limpiamos local storage
+            setStatus("Desconectado")
+            setWabaId("")
+            setFbUserName("")
+            localStorage.removeItem('andara_fb_status')
+            localStorage.removeItem('andara_fb_pages')
+            localStorage.removeItem('andara_fb_user_name')
+          }
         } else {
-          setStatus("Desconectado")
-          setWabaId("")
-          setFbUserName("")
+          console.warn("Error al obtener paginas_vinculadas de Supabase, usando local storage:", pagesError.message)
         }
       } catch (err) {
         console.error("Error cargando páginas vinculadas desde Supabase:", err)
@@ -115,13 +138,15 @@ export default function SettingsPage() {
         .then(data => {
           if (data.success) {
             setStatus("Conectado")
-            setFbUserName(data.fbUserName || "Cuenta de Facebook")
-            if (data.pages && data.pages.length > 0) {
-              const names = data.pages.map((p: any) => p.name).join(", ")
-              setWabaId(names)
-            } else {
-              setWabaId("Ninguna página encontrada")
-            }
+            const fbName = data.fbUserName || "Cuenta de Facebook"
+            setFbUserName(fbName)
+            const names = data.pages && data.pages.length > 0 ? data.pages.map((p: any) => p.name).join(", ") : "Ninguna página encontrada"
+            setWabaId(names)
+
+            // Guardar en local storage para persistencia de respaldo
+            localStorage.setItem('andara_fb_status', 'Conectado')
+            localStorage.setItem('andara_fb_pages', names)
+            localStorage.setItem('andara_fb_user_name', fbName)
           } else {
             setStatus("❌ Error al conectar")
             alert("Error al conectar páginas: " + (data.error || "Error desconocido"))
