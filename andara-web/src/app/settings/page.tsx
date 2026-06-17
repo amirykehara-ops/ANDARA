@@ -50,7 +50,7 @@ export default function SettingsPage() {
       // Cargar páginas de Facebook vinculadas desde la base de datos
       try {
         const { data: pagesData, error: pagesError } = await supabase
-          .from('linked_pages')
+          .from('paginas_vinculadas')
           .select('page_name')
           .eq('guide_email', userEmail)
 

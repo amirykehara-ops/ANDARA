@@ -43,7 +43,10 @@ export async function updateSession(request: NextRequest) {
       name: user.user_metadata.full_name || user.email?.split('@')[0] || 'Usuario',
       email: user.email
     }
-    const encoded = Buffer.from(JSON.stringify(sessionData)).toString('base64')
+    const jsonStr = JSON.stringify(sessionData)
+    const encoded = btoa(encodeURIComponent(jsonStr).replace(/%([0-9A-F]{2})/g, (match, p1) => {
+      return String.fromCharCode(parseInt(p1, 16))
+    }))
     supabaseResponse.cookies.set('andara_session', encoded, {
       path: '/',
       maxAge: 60 * 60 * 24 * 7 // 1 semana
