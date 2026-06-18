@@ -101,6 +101,19 @@ export async function POST(request: Request) {
             const instagramId = igData.instagram_business_account.id
             console.log(`📸 Instagram Business Account detectada: ${instagramId} para la página ${pageName}`);
             
+            // Obtener el nombre/username real de la cuenta de Instagram
+            let instagramName = `${pageName} (Instagram)`
+            try {
+              const igDetailsUrl = `https://graph.facebook.com/v25.0/${instagramId}?fields=username,name&access_token=${pageAccessToken}`
+              const igDetailsRes = await fetch(igDetailsUrl)
+              if (igDetailsRes.ok) {
+                const igDetails = await igDetailsRes.json()
+                instagramName = igDetails.name || `@${igDetails.username}` || instagramName
+              }
+            } catch (errIgDetails) {
+              console.warn("⚠️ Error obteniendo detalles de Instagram:", errIgDetails)
+            }
+
             // Suscribir la app también a los webhooks de la cuenta de Instagram
             const subscribeIgUrl = `https://graph.facebook.com/v25.0/${instagramId}/subscribed_apps`
             await fetch(subscribeIgUrl, {
@@ -118,7 +131,7 @@ export async function POST(request: Request) {
               .upsert({
                 guide_email: guideEmail,
                 page_id: instagramId,
-                page_name: `${pageName} (Instagram)`,
+                page_name: instagramName,
                 page_access_token: pageAccessToken,
                 platform: 'instagram',
                 fb_user_name: fbUserName
@@ -127,8 +140,8 @@ export async function POST(request: Request) {
             if (dbErrorIg) {
               console.error(`❌ Error guardando Instagram ${pageName} en la Base de Datos:`, dbErrorIg.message)
             } else {
-              console.log(`✅ Instagram de la página ${pageName} conectado con éxito.`);
-              connectedPages.push({ id: instagramId, name: `${pageName} (Instagram)` })
+              console.log(`✅ Instagram "${instagramName}" conectado con éxito.`);
+              connectedPages.push({ id: instagramId, name: instagramName })
             }
           }
         }
