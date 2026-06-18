@@ -97,6 +97,8 @@ export async function POST(request: Request) {
         const igRes = await fetch(igUrl)
         if (igRes.ok) {
           const igData = await igRes.json()
+          console.log(`🔍 Respuesta de Instagram para la página ${pageName}:`, JSON.stringify(igData))
+          
           if (igData.instagram_business_account && igData.instagram_business_account.id) {
             const instagramId = igData.instagram_business_account.id
             console.log(`📸 Instagram Business Account detectada: ${instagramId} para la página ${pageName}`);
@@ -108,7 +110,11 @@ export async function POST(request: Request) {
               const igDetailsRes = await fetch(igDetailsUrl)
               if (igDetailsRes.ok) {
                 const igDetails = await igDetailsRes.json()
+                console.log(`🔍 Detalles de Instagram obtenidos:`, JSON.stringify(igDetails))
                 instagramName = igDetails.name || `@${igDetails.username}` || instagramName
+              } else {
+                const igDetailsErr = await igDetailsRes.json()
+                console.warn(`⚠️ No se pudo obtener detalles de la cuenta de Instagram:`, JSON.stringify(igDetailsErr))
               }
             } catch (errIgDetails) {
               console.warn("⚠️ Error obteniendo detalles de Instagram:", errIgDetails)
@@ -143,7 +149,12 @@ export async function POST(request: Request) {
               console.log(`✅ Instagram "${instagramName}" conectado con éxito.`);
               connectedPages.push({ id: instagramId, name: instagramName, platform: 'instagram' })
             }
+          } else {
+            console.log(`⚠️ La página ${pageName} no tiene una cuenta de Instagram Business vinculada en la API de Meta.`);
           }
+        } else {
+          const igErr = await igRes.json()
+          console.error(`❌ Error de Graph API consultando Instagram para ${pageName}:`, JSON.stringify(igErr))
         }
       } catch (errIg) {
         console.warn(`⚠️ Error buscando cuenta de Instagram vinculada para ${pageName}:`, errIg)
