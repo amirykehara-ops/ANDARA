@@ -89,8 +89,52 @@ export async function POST(request: Request) {
       if (dbError) {
         console.error(`❌ Error guardando página ${pageName} en la Base de Datos:`, dbError.message)
       }
-      // Siempre agregamos la página para asegurar la visualización en la demo e incógnito
       connectedPages.push({ id: pageId, name: pageName })
+
+      // 🔍 Intentar detectar automáticamente si hay una cuenta de Instagram Business vinculada a esta página
+      try {
+        const igUrl = `https://graph.facebook.com/v25.0/${pageId}?fields=instagram_business_account&access_token=${pageAccessToken}`
+        const igRes = await fetch(igUrl)
+        if (igRes.ok) {
+          const igData = await igRes.json()
+          if (igData.instagram_business_account && igData.instagram_business_account.id) {
+            const instagramId = igData.instagram_business_account.id
+            console.log(`📸 Instagram Business Account detectada: ${instagramId} para la página ${pageName}`);
+            
+            // Suscribir la app también a los webhooks de la cuenta de Instagram
+            const subscribeIgUrl = `https://graph.facebook.com/v25.0/${instagramId}/subscribed_apps`
+            await fetch(subscribeIgUrl, {
+              method: "POST",
+              headers: { "Content-Type": "application/json" },
+              body: JSON.stringify({
+                subscribed_fields: "messages,comments",
+                access_token: pageAccessToken
+              })
+            })
+
+            // Guardar el mapeo de Instagram en la Base de Datos para el ruteo del webhook
+            const { error: dbErrorIg } = await supabase
+              .from('paginas_vinculadas')
+              .upsert({
+                guide_email: guideEmail,
+                page_id: instagramId,
+                page_name: `${pageName} (Instagram)`,
+                page_access_token: pageAccessToken,
+                platform: 'instagram',
+                fb_user_name: fbUserName
+              }, { onConflict: 'page_id' })
+
+            if (dbErrorIg) {
+              console.error(`❌ Error guardando Instagram ${pageName} en la Base de Datos:`, dbErrorIg.message)
+            } else {
+              console.log(`✅ Instagram de la página ${pageName} conectado con éxito.`);
+              connectedPages.push({ id: instagramId, name: `${pageName} (Instagram)` })
+            }
+          }
+        }
+      } catch (errIg) {
+        console.warn(`⚠️ Error buscando cuenta de Instagram vinculada para ${pageName}:`, errIg)
+      }
     }
 
     return NextResponse.json({
