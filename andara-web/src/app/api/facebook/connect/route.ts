@@ -81,7 +81,6 @@ export async function POST(request: Request) {
         console.log(`✅ Página ${pageName} suscrita con éxito en Meta.`);
       }
 
-      // Guardar en la tabla paginas_vinculadas de Supabase
       const { error: dbError } = await supabase
         .from('paginas_vinculadas')
         .upsert({
@@ -89,8 +88,7 @@ export async function POST(request: Request) {
           page_id: pageId,
           page_name: pageName,
           page_access_token: pageAccessToken,
-          platform: 'facebook',
-          fb_user_name: fbUserName
+          platform: 'facebook'
         }, { onConflict: 'page_id' })
 
       if (dbError) {
@@ -138,7 +136,6 @@ export async function POST(request: Request) {
               })
             })
 
-            // Guardar el mapeo de Instagram en la Base de Datos para el ruteo del webhook
             const { error: dbErrorIg } = await supabase
               .from('paginas_vinculadas')
               .upsert({
@@ -146,8 +143,7 @@ export async function POST(request: Request) {
                 page_id: instagramId,
                 page_name: instagramName,
                 page_access_token: pageAccessToken,
-                platform: 'instagram',
-                fb_user_name: fbUserName
+                platform: 'instagram'
               }, { onConflict: 'page_id' })
 
             if (dbErrorIg) {
