@@ -192,6 +192,7 @@ export default function SettingsPage() {
         alert("No se pudo iniciar sesión con Facebook.\n\nNota: Si estás usando el modo de navegación Incógnita, asegúrate de permitir las cookies de terceros en tu navegador, ya que el SDK de Meta las requiere para validar tu identidad.")
       }
     }, {
+      scope: 'pages_show_list,pages_messaging,instagram_basic,instagram_manage_messages',
       config_id: '1791723998759589'
     });
   }
