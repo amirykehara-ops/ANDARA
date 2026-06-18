@@ -25,6 +25,7 @@ export default function SettingsPage() {
   const [status, setStatus] = useState("Desconectado")
   const [wabaId, setWabaId] = useState("")
   const [fbUserName, setFbUserName] = useState("")
+  const [igAccountName, setIgAccountName] = useState("")
   const [fbReady, setFbReady] = useState(false)
 
   useEffect(() => {
@@ -53,11 +54,15 @@ export default function SettingsPage() {
         const storedStatus = localStorage.getItem('andara_fb_status')
         const storedPages = localStorage.getItem('andara_fb_pages')
         const storedFbUser = localStorage.getItem('andara_fb_user_name')
+        const storedIgAccount = localStorage.getItem('andara_ig_account')
 
         if (storedStatus && storedPages) {
           setStatus(storedStatus)
           setWabaId(storedPages)
           setFbUserName(storedFbUser || "Cuenta de Facebook")
+          if (storedIgAccount) {
+            setIgAccountName(storedIgAccount)
+          }
         }
       }
 
@@ -65,29 +70,42 @@ export default function SettingsPage() {
       try {
         const { data: pagesData, error: pagesError } = await supabase
           .from('paginas_vinculadas')
-          .select('page_name, fb_user_name')
+          .select('page_name, fb_user_name, platform')
           .eq('guide_email', userEmail)
 
         if (!pagesError) {
           if (pagesData && pagesData.length > 0) {
             setStatus("Conectado")
-            const names = pagesData.map((p: any) => p.page_name).join(", ")
-            setWabaId(names)
+            
+            const fbPages = pagesData.filter((p: any) => p.platform === 'facebook').map((p: any) => p.page_name)
+            const igAccounts = pagesData.filter((p: any) => p.platform === 'instagram').map((p: any) => p.page_name)
+            
             const fbName = pagesData[0].fb_user_name || "Cuenta de Facebook"
             setFbUserName(fbName)
+            
+            const pagesJoined = fbPages.join(", ")
+            setWabaId(pagesJoined)
+            
+            const igJoined = igAccounts.join(", ")
+            setIgAccountName(igJoined)
 
-            // Sincronizar local storage
             localStorage.setItem('andara_fb_status', 'Conectado')
-            localStorage.setItem('andara_fb_pages', names)
+            localStorage.setItem('andara_fb_pages', pagesJoined)
             localStorage.setItem('andara_fb_user_name', fbName)
+            if (igJoined) {
+              localStorage.setItem('andara_ig_account', igJoined)
+            } else {
+              localStorage.removeItem('andara_ig_account')
+            }
           } else {
-            // Si la consulta fue exitosa pero no hay datos, limpiamos local storage
             setStatus("Desconectado")
             setWabaId("")
             setFbUserName("")
+            setIgAccountName("")
             localStorage.removeItem('andara_fb_status')
             localStorage.removeItem('andara_fb_pages')
             localStorage.removeItem('andara_fb_user_name')
+            localStorage.removeItem('andara_ig_account')
           }
         } else {
           console.warn("Error al obtener paginas_vinculadas de Supabase, usando local storage:", pagesError.message)
@@ -140,13 +158,25 @@ export default function SettingsPage() {
             setStatus("Conectado")
             const fbName = data.fbUserName || "Cuenta de Facebook"
             setFbUserName(fbName)
-            const names = data.pages && data.pages.length > 0 ? data.pages.map((p: any) => p.name).join(", ") : "Ninguna página encontrada"
-            setWabaId(names)
+            
+            const fbPages = data.pages ? data.pages.filter((p: any) => p.platform === 'facebook').map((p: any) => p.name) : []
+            const igAccounts = data.pages ? data.pages.filter((p: any) => p.platform === 'instagram').map((p: any) => p.name) : []
+            
+            const fbPagesJoined = fbPages.join(", ") || "Ninguna página de Facebook"
+            const igAccountsJoined = igAccounts.join(", ")
+            
+            setWabaId(fbPagesJoined)
+            setIgAccountName(igAccountsJoined)
 
             // Guardar en local storage para persistencia de respaldo
             localStorage.setItem('andara_fb_status', 'Conectado')
-            localStorage.setItem('andara_fb_pages', names)
+            localStorage.setItem('andara_fb_pages', fbPagesJoined)
             localStorage.setItem('andara_fb_user_name', fbName)
+            if (igAccountsJoined) {
+              localStorage.setItem('andara_ig_account', igAccountsJoined)
+            } else {
+              localStorage.removeItem('andara_ig_account')
+            }
           } else {
             setStatus("❌ Error al conectar")
             alert("Error al conectar páginas: " + (data.error || "Error desconocido"))
@@ -284,15 +314,21 @@ export default function SettingsPage() {
                   </p>
                 </div>
               </div>
-              <div className="grid grid-cols-1 sm:grid-cols-2 gap-4 pt-1 text-sm">
+              <div className="grid grid-cols-1 sm:grid-cols-3 gap-4 pt-1 text-sm">
                 <div>
-                  <p className="text-xs text-muted-foreground uppercase font-mono tracking-wider">Nombre</p>
+                  <p className="text-xs text-muted-foreground uppercase font-mono tracking-wider">Nombre FB</p>
                   <p className="font-semibold text-foreground mt-0.5">{fbUserName}</p>
                 </div>
                 <div>
                   <p className="text-xs text-muted-foreground uppercase font-mono tracking-wider">Página vinculada</p>
                   <p className="font-semibold text-primary mt-0.5">{wabaId}</p>
                 </div>
+                {igAccountName && (
+                  <div>
+                    <p className="text-xs text-muted-foreground uppercase font-mono tracking-wider">Instagram vinculado</p>
+                    <p className="font-semibold text-emerald-500 mt-0.5">{igAccountName}</p>
+                  </div>
+                )}
               </div>
             </div>
           ) : (

@@ -89,7 +89,7 @@ export async function POST(request: Request) {
       if (dbError) {
         console.error(`❌ Error guardando página ${pageName} en la Base de Datos:`, dbError.message)
       }
-      connectedPages.push({ id: pageId, name: pageName })
+      connectedPages.push({ id: pageId, name: pageName, platform: 'facebook' })
 
       // 🔍 Intentar detectar automáticamente si hay una cuenta de Instagram Business vinculada a esta página
       try {
@@ -141,7 +141,7 @@ export async function POST(request: Request) {
               console.error(`❌ Error guardando Instagram ${pageName} en la Base de Datos:`, dbErrorIg.message)
             } else {
               console.log(`✅ Instagram "${instagramName}" conectado con éxito.`);
-              connectedPages.push({ id: instagramId, name: instagramName })
+              connectedPages.push({ id: instagramId, name: instagramName, platform: 'instagram' })
             }
           }
         }
