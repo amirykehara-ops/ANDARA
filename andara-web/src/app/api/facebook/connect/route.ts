@@ -40,10 +40,17 @@ export async function POST(request: Request) {
     }
 
     const accountsData = await accountsRes.json()
+    console.log("🔍 raw accountsData from Meta:", JSON.stringify(accountsData))
     const pages = accountsData.data || []
 
     if (pages.length === 0) {
-      return NextResponse.json({ success: true, pages: [], fbUserName, message: "No Pages found for this user account" })
+      return NextResponse.json({ 
+        success: true, 
+        pages: [], 
+        fbUserName, 
+        message: "No Pages found for this user account",
+        debugData: accountsData
+      })
     }
 
     const connectedPages = []

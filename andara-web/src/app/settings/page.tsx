@@ -155,6 +155,11 @@ export default function SettingsPage() {
         .then(res => res.json())
         .then(data => {
           if (data.success) {
+            if (!data.pages || data.pages.length === 0) {
+              console.warn("⚠️ Meta no devolvió páginas:", data.debugData)
+              alert("Aviso: Conexión exitosa, pero Meta no retornó ninguna página comercial. Esto ocurre si no seleccionaste tu Página en la ventana de Facebook o si tu token no tiene permisos de lectura de páginas. Detalles de depuración de Meta: " + JSON.stringify(data.debugData || data.message))
+            }
+            
             setStatus("Conectado")
             const fbName = data.fbUserName || "Cuenta de Facebook"
             setFbUserName(fbName)
