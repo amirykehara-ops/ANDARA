@@ -81,15 +81,26 @@ export async function POST(request: Request) {
         console.log(`✅ Página ${pageName} suscrita con éxito en Meta.`);
       }
 
+      // Borrar cualquier vinculación previa de esta página para evitar violación de políticas RLS de UPDATE
+      try {
+        await supabase
+          .from('paginas_vinculadas')
+          .delete()
+          .eq('page_id', pageId)
+      } catch (delErr) {
+        console.warn("⚠️ Error borrando vinculación previa:", delErr)
+      }
+
+      // Insertar la nueva vinculación con RLS de INSERT que está permitido
       const { error: dbError } = await supabase
         .from('paginas_vinculadas')
-        .upsert({
+        .insert({
           guide_email: guideEmail,
           page_id: pageId,
           page_name: pageName,
           page_access_token: pageAccessToken,
           platform: 'facebook'
-        }, { onConflict: 'page_id' })
+        })
 
       if (dbError) {
         console.error(`❌ Error guardando página ${pageName} en la Base de Datos:`, dbError.message)
@@ -136,15 +147,26 @@ export async function POST(request: Request) {
               })
             })
 
+            // Borrar cualquier vinculación previa de Instagram para evitar violación de políticas RLS de UPDATE
+            try {
+              await supabase
+                .from('paginas_vinculadas')
+                .delete()
+                .eq('page_id', instagramId)
+            } catch (delErrIg) {
+              console.warn("⚠️ Error borrando vinculación previa de Instagram:", delErrIg)
+            }
+
+            // Insertar la nueva vinculación de Instagram
             const { error: dbErrorIg } = await supabase
               .from('paginas_vinculadas')
-              .upsert({
+              .insert({
                 guide_email: guideEmail,
                 page_id: instagramId,
                 page_name: instagramName,
                 page_access_token: pageAccessToken,
                 platform: 'instagram'
-              }, { onConflict: 'page_id' })
+              })
 
             if (dbErrorIg) {
               console.error(`❌ Error guardando Instagram ${pageName} en la Base de Datos:`, dbErrorIg.message)
