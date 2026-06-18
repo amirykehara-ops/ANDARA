@@ -116,7 +116,7 @@ export async function POST(request: Request) {
               if (igDetailsRes.ok) {
                 const igDetails = await igDetailsRes.json()
                 console.log(`🔍 Detalles de Instagram obtenidos:`, JSON.stringify(igDetails))
-                instagramName = igDetails.name || `@${igDetails.username}` || instagramName
+                instagramName = igDetails.username ? `@${igDetails.username}` : (igDetails.name || instagramName)
               } else {
                 const igDetailsErr = await igDetailsRes.json()
                 console.warn(`⚠️ No se pudo obtener detalles de la cuenta de Instagram:`, JSON.stringify(igDetailsErr))
