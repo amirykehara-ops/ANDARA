@@ -193,7 +193,8 @@ export default function SettingsPage() {
       }
     }, {
       scope: 'pages_show_list,pages_messaging,instagram_basic,instagram_manage_messages,pages_read_engagement',
-      auth_type: 'rerequest'
+      auth_type: 'rerequest',
+      config_id: '1791723998759589'
     });
   }
 
