@@ -186,6 +186,65 @@ export async function POST(request: Request) {
       }
     }
 
+    // 4. 🔍 Detectar automáticamente si hay cuentas de WhatsApp Business vinculadas al perfil de Meta
+    try {
+      const waUrl = `https://graph.facebook.com/v25.0/me/whatsapp_business_accounts?fields=id,name,phone_numbers{id,display_phone_number,verified_name}&access_token=${accessToken}`
+      console.log(`📞 Consultando cuentas de WhatsApp Business con URL: ${waUrl.substring(0, 60)}...`)
+      const waRes = await fetch(waUrl)
+      
+      if (waRes.ok) {
+        const waData = await waRes.json()
+        console.log("🔍 raw whatsapp_business_accounts from Meta:", JSON.stringify(waData))
+        const wabas = waData.data || []
+        
+        for (const waba of wabas) {
+          if (waba.phone_numbers && waba.phone_numbers.data) {
+            for (const phone of waba.phone_numbers.data) {
+              const phoneId = phone.id
+              const phoneDisplay = phone.display_phone_number || phone.verified_name || `${waba.name} (${phoneId})`
+              const dbPageId = `wa_${phoneId}`
+              
+              console.log(`📞 WhatsApp Phone Number detectado: ${phoneDisplay} (ID: ${phoneId})`)
+              
+              // Borrar cualquier vinculación previa del mismo ID para evitar fallos de RLS UPDATE
+              try {
+                await supabase
+                  .from('paginas_vinculadas')
+                  .delete()
+                  .eq('page_id', dbPageId)
+              } catch (delErrWa) {
+                console.warn("⚠️ Error borrando vinculación previa de WhatsApp:", delErrWa)
+              }
+
+              // Insertar la vinculación de WhatsApp (usamos platform: 'facebook' debido al check constraint de la BD)
+              const { error: dbErrorWa } = await supabase
+                .from('paginas_vinculadas')
+                .insert({
+                  guide_email: guideEmail,
+                  page_id: dbPageId,
+                  page_name: phoneDisplay,
+                  page_access_token: accessToken,
+                  platform: 'facebook'
+                })
+
+              if (dbErrorWa) {
+                console.error(`❌ Error guardando WhatsApp ${phoneDisplay} en la Base de Datos:`, dbErrorWa.message)
+              } else {
+                console.log(`✅ WhatsApp "${phoneDisplay}" conectado con éxito.`);
+                connectedPages.push({ id: dbPageId, name: phoneDisplay, platform: 'whatsapp' })
+              }
+            }
+          }
+        }
+      } else {
+        const waErr = await waRes.json()
+        console.warn(`⚠️ No se pudo consultar WhatsApp Business Accounts:`, JSON.stringify(waErr))
+      }
+    } catch (errWa) {
+      console.warn(`⚠️ Error buscando cuentas de WhatsApp Business vinculadas:`, errWa)
+    }
+
+
     return NextResponse.json({
       success: true,
       message: `Vinculación completada. Se conectaron ${connectedPages.length} página(s).`,

@@ -207,7 +207,18 @@ export async function POST(request: Request) {
       targetPageId = body.entry[0].id?.toString() || null;
     } else if (body.object === "instagram" && body.entry?.[0]) {
       targetPageId = body.entry[0].id?.toString() || null;
+    } else if (body.object === "whatsapp_business_account" && body.entry?.[0]?.changes?.[0]) {
+      const phone_number_id = body.entry[0].changes[0].value?.metadata?.phone_number_id;
+      if (phone_number_id) {
+        targetPageId = `wa_${phone_number_id}`;
+      }
+    } else if (body.field === "messages" && body.value?.messaging_product === "whatsapp") {
+      const phone_number_id = body.value?.metadata?.phone_number_id;
+      if (phone_number_id) {
+        targetPageId = `wa_${phone_number_id}`;
+      }
     }
+
 
     let guideEmail = "guia@andara.pe"; // Fallback por defecto
     try {

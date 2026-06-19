@@ -26,6 +26,7 @@ export default function SettingsPage() {
   const [wabaId, setWabaId] = useState("")
   const [fbUserName, setFbUserName] = useState("")
   const [igAccountName, setIgAccountName] = useState("")
+  const [waAccountName, setWaAccountName] = useState("")
   const [fbReady, setFbReady] = useState(false)
 
   useEffect(() => {
@@ -55,6 +56,7 @@ export default function SettingsPage() {
         const storedPages = localStorage.getItem('andara_fb_pages')
         const storedFbUser = localStorage.getItem('andara_fb_user_name')
         const storedIgAccount = localStorage.getItem('andara_ig_account')
+        const storedWaAccount = localStorage.getItem('andara_wa_account')
 
         if (storedStatus && storedPages) {
           setStatus(storedStatus)
@@ -63,22 +65,27 @@ export default function SettingsPage() {
           if (storedIgAccount) {
             setIgAccountName(storedIgAccount)
           }
+          if (storedWaAccount) {
+            setWaAccountName(storedWaAccount)
+          }
         }
       }
+
 
       // 2. Intentar cargar/sincronizar desde la base de datos de Supabase
       try {
         const { data: pagesData, error: pagesError } = await supabase
           .from('paginas_vinculadas')
-          .select('page_name, fb_user_name, platform')
+          .select('page_id, page_name, fb_user_name, platform')
           .eq('guide_email', userEmail)
 
         if (!pagesError) {
           if (pagesData && pagesData.length > 0) {
             setStatus("Conectado")
             
-            const fbPages = pagesData.filter((p: any) => p.platform === 'facebook').map((p: any) => p.page_name)
+            const fbPages = pagesData.filter((p: any) => p.platform === 'facebook' && !p.page_id?.startsWith('wa_')).map((p: any) => p.page_name)
             const igAccounts = pagesData.filter((p: any) => p.platform === 'instagram').map((p: any) => p.page_name)
+            const waAccounts = pagesData.filter((p: any) => p.platform === 'facebook' && p.page_id?.startsWith('wa_')).map((p: any) => p.page_name)
             
             const fbName = pagesData[0].fb_user_name || "Cuenta de Facebook"
             setFbUserName(fbName)
@@ -89,6 +96,9 @@ export default function SettingsPage() {
             const igJoined = igAccounts.join(", ")
             setIgAccountName(igJoined)
 
+            const waJoined = waAccounts.join(", ")
+            setWaAccountName(waJoined)
+
             localStorage.setItem('andara_fb_status', 'Conectado')
             localStorage.setItem('andara_fb_pages', pagesJoined)
             localStorage.setItem('andara_fb_user_name', fbName)
@@ -97,15 +107,22 @@ export default function SettingsPage() {
             } else {
               localStorage.removeItem('andara_ig_account')
             }
+            if (waJoined) {
+              localStorage.setItem('andara_wa_account', waJoined)
+            } else {
+              localStorage.removeItem('andara_wa_account')
+            }
           } else {
             setStatus("Desconectado")
             setWabaId("")
             setFbUserName("")
             setIgAccountName("")
+            setWaAccountName("")
             localStorage.removeItem('andara_fb_status')
             localStorage.removeItem('andara_fb_pages')
             localStorage.removeItem('andara_fb_user_name')
             localStorage.removeItem('andara_ig_account')
+            localStorage.removeItem('andara_wa_account')
           }
         } else {
           console.warn("Error al obtener paginas_vinculadas de Supabase, usando local storage:", pagesError.message)
@@ -164,14 +181,17 @@ export default function SettingsPage() {
             const fbName = data.fbUserName || "Cuenta de Facebook"
             setFbUserName(fbName)
             
-            const fbPages = data.pages ? data.pages.filter((p: any) => p.platform === 'facebook').map((p: any) => p.name) : []
+            const fbPages = data.pages ? data.pages.filter((p: any) => p.platform === 'facebook' && !p.id?.startsWith('wa_')).map((p: any) => p.name) : []
             const igAccounts = data.pages ? data.pages.filter((p: any) => p.platform === 'instagram').map((p: any) => p.name) : []
+            const waAccounts = data.pages ? data.pages.filter((p: any) => p.platform === 'whatsapp' || (p.platform === 'facebook' && p.id?.startsWith('wa_'))).map((p: any) => p.name) : []
             
             const fbPagesJoined = fbPages.join(", ") || "Ninguna página de Facebook"
             const igAccountsJoined = igAccounts.join(", ")
+            const waAccountsJoined = waAccounts.join(", ")
             
             setWabaId(fbPagesJoined)
             setIgAccountName(igAccountsJoined)
+            setWaAccountName(waAccountsJoined)
 
             // Guardar en local storage para persistencia de respaldo
             localStorage.setItem('andara_fb_status', 'Conectado')
@@ -181,6 +201,11 @@ export default function SettingsPage() {
               localStorage.setItem('andara_ig_account', igAccountsJoined)
             } else {
               localStorage.removeItem('andara_ig_account')
+            }
+            if (waAccountsJoined) {
+              localStorage.setItem('andara_wa_account', waAccountsJoined)
+            } else {
+              localStorage.removeItem('andara_wa_account')
             }
           } else {
             setStatus("❌ Error al conectar")
@@ -197,7 +222,7 @@ export default function SettingsPage() {
         alert("No se pudo iniciar sesión con Facebook.\n\nNota: Si estás usando el modo de navegación Incógnita, asegúrate de permitir las cookies de terceros en tu navegador, ya que el SDK de Meta las requiere para validar tu identidad.")
       }
     }, {
-      scope: 'pages_show_list,pages_messaging,instagram_basic,instagram_manage_messages,pages_read_engagement',
+      scope: 'pages_show_list,pages_messaging,instagram_basic,instagram_manage_messages,pages_read_engagement,whatsapp_business_management,whatsapp_business_messaging',
       auth_type: 'rerequest',
       config_id: '1791723998759589'
     });
@@ -304,13 +329,13 @@ export default function SettingsPage() {
 
         <div className="mt-8 pt-8 border-t border-border/40 space-y-4">
           <div className="flex items-center gap-2">
-            <div className={`w-2.5 h-2.5 rounded-full ${wabaId ? 'bg-green-500 animate-pulse' : 'bg-blue-500'}`} />
-            <h3 className="text-lg font-bold text-foreground">Conectar Páginas de Facebook</h3>
+            <div className={`w-2.5 h-2.5 rounded-full ${wabaId || waAccountName ? 'bg-green-500 animate-pulse' : 'bg-blue-500'}`} />
+            <h3 className="text-lg font-bold text-foreground">Conectar Canales de Comunicación (Meta)</h3>
           </div>
           <p className="text-sm text-muted-foreground leading-relaxed">
-            Vincula tus páginas comerciales de Facebook para recibir chats de Messenger e Instagram en Andara CRM.
+            Vincula tus páginas de Facebook, cuentas comerciales de Instagram y números de WhatsApp Business para consolidar tus chats en Andara CRM.
           </p>
-          {wabaId ? (
+          {wabaId || waAccountName ? (
             <div className="p-5 bg-muted/40 border border-border/50 rounded-2xl space-y-3">
               <div className="flex justify-between items-center pb-2 border-b border-border/20">
                 <div>
@@ -321,19 +346,27 @@ export default function SettingsPage() {
                   </p>
                 </div>
               </div>
-              <div className="grid grid-cols-1 sm:grid-cols-3 gap-4 pt-1 text-sm">
+              <div className={`grid grid-cols-1 gap-4 pt-1 text-sm ${igAccountName && waAccountName ? 'sm:grid-cols-4' : (igAccountName || waAccountName ? 'sm:grid-cols-3' : 'sm:grid-cols-2')}`}>
                 <div>
                   <p className="text-xs text-muted-foreground uppercase font-mono tracking-wider">Nombre FB</p>
                   <p className="font-semibold text-foreground mt-0.5">{fbUserName}</p>
                 </div>
-                <div>
-                  <p className="text-xs text-muted-foreground uppercase font-mono tracking-wider">Página vinculada</p>
-                  <p className="font-semibold text-primary mt-0.5">{wabaId}</p>
-                </div>
+                {wabaId && (
+                  <div>
+                    <p className="text-xs text-muted-foreground uppercase font-mono tracking-wider">Página vinculada</p>
+                    <p className="font-semibold text-primary mt-0.5">{wabaId}</p>
+                  </div>
+                )}
                 {igAccountName && (
                   <div>
                     <p className="text-xs text-muted-foreground uppercase font-mono tracking-wider">Instagram vinculado</p>
                     <p className="font-semibold text-emerald-500 mt-0.5">{igAccountName}</p>
+                  </div>
+                )}
+                {waAccountName && (
+                  <div>
+                    <p className="text-xs text-muted-foreground uppercase font-mono tracking-wider">WhatsApp vinculado</p>
+                    <p className="font-semibold text-teal-500 mt-0.5">{waAccountName}</p>
                   </div>
                 )}
               </div>
@@ -349,19 +382,19 @@ export default function SettingsPage() {
           <Button
             type="button"
             onClick={handleFBLogin}
-            disabled={!fbReady || !!wabaId}
+            disabled={!fbReady || !!(wabaId || igAccountName || waAccountName)}
             className={`w-full text-white rounded-xl py-6 font-semibold shadow-lg transition-all cursor-pointer ${
-              wabaId 
+              (wabaId || igAccountName || waAccountName) 
                 ? 'bg-emerald-600 cursor-not-allowed' 
                 : fbReady 
                   ? 'bg-[#1877f2] hover:bg-[#166fe5]' 
                   : 'bg-gray-600 cursor-not-allowed'
             }`}
           >
-            {wabaId 
-              ? "✅ Conectado con Facebook Business" 
+            {(wabaId || igAccountName || waAccountName) 
+              ? "✅ Conectado con Meta Business" 
               : fbReady 
-                ? "Conectar con Facebook Business" 
+                ? "Conectar con Meta Business" 
                 : "Cargando entorno seguro de Meta..."
             }
           </Button>
