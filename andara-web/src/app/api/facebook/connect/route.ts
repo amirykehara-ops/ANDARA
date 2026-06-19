@@ -198,41 +198,58 @@ export async function POST(request: Request) {
         const wabas = waData.data || []
         
         for (const waba of wabas) {
-          if (waba.phone_numbers && waba.phone_numbers.data) {
-            for (const phone of waba.phone_numbers.data) {
-              const phoneId = phone.id
-              const phoneDisplay = phone.display_phone_number || phone.verified_name || `${waba.name} (${phoneId})`
-              const dbPageId = `wa_${phoneId}`
-              
-              console.log(`📞 WhatsApp Phone Number detectado: ${phoneDisplay} (ID: ${phoneId})`)
-              
-              // Borrar cualquier vinculación previa del mismo ID para evitar fallos de RLS UPDATE
-              try {
-                await supabase
-                  .from('paginas_vinculadas')
-                  .delete()
-                  .eq('page_id', dbPageId)
-              } catch (delErrWa) {
-                console.warn("⚠️ Error borrando vinculación previa de WhatsApp:", delErrWa)
-              }
-
-              // Insertar la vinculación de WhatsApp (usamos platform: 'facebook' debido al check constraint de la BD)
-              const { error: dbErrorWa } = await supabase
-                .from('paginas_vinculadas')
-                .insert({
-                  guide_email: guideEmail,
-                  page_id: dbPageId,
-                  page_name: phoneDisplay,
-                  page_access_token: accessToken,
-                  platform: 'facebook'
-                })
-
-              if (dbErrorWa) {
-                console.error(`❌ Error guardando WhatsApp ${phoneDisplay} en la Base de Datos:`, dbErrorWa.message)
+          let phoneNumbersList = waba.phone_numbers?.data || []
+          
+          if (phoneNumbersList.length === 0) {
+            try {
+              const phoneUrl = `https://graph.facebook.com/v25.0/${waba.id}/phone_numbers?fields=id,display_phone_number,verified_name&access_token=${accessToken}`
+              console.log(`📞 Consultando números de teléfono para la WABA ${waba.id} en la URL: ${phoneUrl.substring(0, 60)}...`)
+              const phoneRes = await fetch(phoneUrl)
+              if (phoneRes.ok) {
+                const phoneData = await phoneRes.json()
+                phoneNumbersList = phoneData.data || []
               } else {
-                console.log(`✅ WhatsApp "${phoneDisplay}" conectado con éxito.`);
-                connectedPages.push({ id: dbPageId, name: phoneDisplay, platform: 'whatsapp' })
+                const phoneErr = await phoneRes.json()
+                console.warn(`⚠️ Error de Graph API consultando números de la WABA ${waba.id}:`, JSON.stringify(phoneErr))
               }
+            } catch (errPhones) {
+              console.warn(`⚠️ Error de red consultando números de la WABA ${waba.id}:`, errPhones)
+            }
+          }
+          
+          for (const phone of phoneNumbersList) {
+            const phoneId = phone.id
+            const phoneDisplay = phone.display_phone_number || phone.verified_name || `${waba.name} (${phoneId})`
+            const dbPageId = `wa_${phoneId}`
+            
+            console.log(`📞 WhatsApp Phone Number detectado: ${phoneDisplay} (ID: ${phoneId})`)
+            
+            // Borrar cualquier vinculación previa del mismo ID para evitar fallos de RLS UPDATE
+            try {
+              await supabase
+                .from('paginas_vinculadas')
+                .delete()
+                .eq('page_id', dbPageId)
+            } catch (delErrWa) {
+              console.warn("⚠️ Error borrando vinculación previa de WhatsApp:", delErrWa)
+            }
+
+            // Insertar la vinculación de WhatsApp (usamos platform: 'facebook' debido al check constraint de la BD)
+            const { error: dbErrorWa } = await supabase
+              .from('paginas_vinculadas')
+              .insert({
+                guide_email: guideEmail,
+                page_id: dbPageId,
+                page_name: phoneDisplay,
+                page_access_token: accessToken,
+                platform: 'facebook'
+              })
+
+            if (dbErrorWa) {
+              console.error(`❌ Error guardando WhatsApp ${phoneDisplay} en la Base de Datos:`, dbErrorWa.message)
+            } else {
+              console.log(`✅ WhatsApp "${phoneDisplay}" conectado con éxito.`);
+              connectedPages.push({ id: dbPageId, name: phoneDisplay, platform: 'whatsapp' })
             }
           }
         }
