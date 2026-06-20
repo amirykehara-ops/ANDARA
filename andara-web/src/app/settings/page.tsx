@@ -372,7 +372,7 @@ export default function SettingsPage() {
                   </div>
                 )}
               </div>
-              {metaDebugInfo && (
+              {metaDebugInfo && !waAccountName && (
                 <div className="mt-4 p-4 bg-amber-500/10 border border-amber-500/30 rounded-xl space-y-2 text-xs">
                   <p className="font-bold text-amber-500 flex items-center gap-1.5">
                     ⚠️ Depuración de WhatsApp (Meta API):
