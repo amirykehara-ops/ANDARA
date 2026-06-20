@@ -187,6 +187,7 @@ export async function POST(request: Request) {
     }
 
     // 4. 🔍 Detectar automáticamente si hay cuentas de WhatsApp Business vinculadas al perfil de Meta
+    let debugWaData: any = null
     try {
       const waUrl = `https://graph.facebook.com/v25.0/me/whatsapp_business_accounts?fields=id,name,phone_numbers{id,display_phone_number,verified_name}&access_token=${accessToken}`
       console.log(`📞 Consultando cuentas de WhatsApp Business con URL: ${waUrl.substring(0, 60)}...`)
@@ -194,6 +195,7 @@ export async function POST(request: Request) {
       
       if (waRes.ok) {
         const waData = await waRes.json()
+        debugWaData = waData
         console.log("🔍 raw whatsapp_business_accounts from Meta:", JSON.stringify(waData))
         const wabas = waData.data || []
         
@@ -208,12 +210,18 @@ export async function POST(request: Request) {
               if (phoneRes.ok) {
                 const phoneData = await phoneRes.json()
                 phoneNumbersList = phoneData.data || []
+                // Complementar debugWaData con los números obtenidos
+                waba.phone_numbers = { data: phoneNumbersList }
               } else {
                 const phoneErr = await phoneRes.json()
                 console.warn(`⚠️ Error de Graph API consultando números de la WABA ${waba.id}:`, JSON.stringify(phoneErr))
+                if (!waba._debugPhoneErrors) waba._debugPhoneErrors = []
+                waba._debugPhoneErrors.push(phoneErr)
               }
-            } catch (errPhones) {
+            } catch (errPhones: any) {
               console.warn(`⚠️ Error de red consultando números de la WABA ${waba.id}:`, errPhones)
+              if (!waba._debugPhoneErrors) waba._debugPhoneErrors = []
+              waba._debugPhoneErrors.push({ exception: errPhones.message || errPhones })
             }
           }
           
@@ -255,9 +263,11 @@ export async function POST(request: Request) {
         }
       } else {
         const waErr = await waRes.json()
+        debugWaData = { error: waErr }
         console.warn(`⚠️ No se pudo consultar WhatsApp Business Accounts:`, JSON.stringify(waErr))
       }
-    } catch (errWa) {
+    } catch (errWa: any) {
+      debugWaData = { exception: errWa.message || errWa }
       console.warn(`⚠️ Error buscando cuentas de WhatsApp Business vinculadas:`, errWa)
     }
 
@@ -266,7 +276,8 @@ export async function POST(request: Request) {
       success: true,
       message: `Vinculación completada. Se conectaron ${connectedPages.length} página(s).`,
       pages: connectedPages,
-      fbUserName
+      fbUserName,
+      debugWaData
     })
 
   } catch (e: any) {

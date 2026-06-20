@@ -27,6 +27,7 @@ export default function SettingsPage() {
   const [fbUserName, setFbUserName] = useState("")
   const [igAccountName, setIgAccountName] = useState("")
   const [waAccountName, setWaAccountName] = useState("")
+  const [metaDebugInfo, setMetaDebugInfo] = useState<any>(null)
   const [fbReady, setFbReady] = useState(false)
 
   useEffect(() => {
@@ -172,6 +173,7 @@ export default function SettingsPage() {
         .then(res => res.json())
         .then(data => {
           if (data.success) {
+            setMetaDebugInfo(data.debugWaData || null)
             if (!data.pages || data.pages.length === 0) {
               console.warn("⚠️ Meta no devolvió páginas:", data.debugData)
               alert("Aviso: Conexión exitosa, pero Meta no retornó ninguna página comercial. Esto ocurre si no seleccionaste tu Página en la ventana de Facebook o si tu token no tiene permisos de lectura de páginas. Detalles de depuración de Meta: " + JSON.stringify(data.debugData || data.message))
@@ -370,6 +372,29 @@ export default function SettingsPage() {
                   </div>
                 )}
               </div>
+              {metaDebugInfo && (
+                <div className="mt-4 p-4 bg-amber-500/10 border border-amber-500/30 rounded-xl space-y-2 text-xs">
+                  <p className="font-bold text-amber-500 flex items-center gap-1.5">
+                    ⚠️ Depuración de WhatsApp (Meta API):
+                  </p>
+                  <p className="text-muted-foreground leading-relaxed">
+                    Si tu número no aparece, revisa la respuesta cruda de Meta a continuación:
+                  </p>
+                  <pre className="p-3 bg-black/40 rounded-lg text-slate-300 overflow-x-auto max-h-[150px] font-mono leading-tight">
+                    {JSON.stringify(metaDebugInfo, null, 2)}
+                  </pre>
+                  {metaDebugInfo.error && (
+                    <p className="text-red-400 font-semibold mt-1">
+                      Nota: Se detectó un error. Asegúrate de haber aprobado los permisos `whatsapp_business_management` y `whatsapp_business_messaging` en la configuración de inicio de sesión de tu App en la Consola de Meta.
+                    </p>
+                  )}
+                  {metaDebugInfo.data && metaDebugInfo.data.length === 0 && (
+                    <p className="text-amber-400 font-semibold mt-1">
+                      Nota: Meta no retornó ninguna WABA para este perfil. Asegúrate de que tu cuenta de Facebook sea administradora de una cuenta comercial de WhatsApp.
+                    </p>
+                  )}
+                </div>
+              )}
             </div>
           ) : (
             <div className="p-4 bg-muted/40 border border-border/50 rounded-2xl flex items-center justify-between">
