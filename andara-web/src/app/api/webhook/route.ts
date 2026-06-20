@@ -269,6 +269,38 @@ export async function POST(request: Request) {
       time: new Date().toLocaleTimeString()
     };
 
+    // Deduplicación en Base de Datos: verificar si ya existe un mensaje idéntico reciente (últimos 3 segundos)
+    try {
+      const tresSegundosAtras = new Date(Date.now() - 3000).toISOString();
+      const { data: existentes, error: queryError } = await supabase
+        .from('mensajes_entrantes')
+        .select('id')
+        .eq('guide_email', guideEmail)
+        .eq('phone', nuevoLead.phone)
+        .eq('text', nuevoLead.text)
+        .gte('created_at', tresSegundosAtras)
+        .limit(1);
+
+      if (!queryError && existentes && existentes.length > 0) {
+        console.log(`♻️ Webhook deduplicado: el mensaje de ${nuevoLead.phone} ya fue procesado hace menos de 3 segundos. Omitiendo.`);
+        return NextResponse.json({ 
+          received: true, 
+          duplicated: true,
+          channel: source,
+          lead: {
+            name: nombre,
+            source: source,
+            contact: source === "whatsapp" ? `+${identificador}` : `@${nombre.toLowerCase().replace(/\s+/g, '')}`,
+            interest: texto.substring(0, 100),
+            status: "new",
+            date: new Date().toISOString()
+          }
+        }, { status: 200 })
+      }
+    } catch (errDedup) {
+      console.warn("⚠️ Error en deduplicador de base de datos:", errDedup)
+    }
+
     // Lo guardamos en el arreglo global al principio
     if ((global as any).listaLeadsCompartida) {
       (global as any).listaLeadsCompartida.unshift(nuevoLead);
