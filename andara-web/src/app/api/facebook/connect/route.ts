@@ -263,11 +263,27 @@ export async function POST(request: Request) {
         }
       } else {
         const waErr = await waRes.json()
-        debugWaData = { error: waErr }
+        let permissions: any = null
+        try {
+          const permRes = await fetch(`https://graph.facebook.com/v25.0/me/permissions?access_token=${accessToken}`)
+          if (permRes.ok) {
+            permissions = await permRes.json()
+          }
+        } catch (errPerms) {
+          console.warn("⚠️ Error consultando permisos del token:", errPerms)
+        }
+        debugWaData = { error: waErr, permissions: permissions?.data || permissions }
         console.warn(`⚠️ No se pudo consultar WhatsApp Business Accounts:`, JSON.stringify(waErr))
       }
     } catch (errWa: any) {
-      debugWaData = { exception: errWa.message || errWa }
+      let permissions: any = null
+      try {
+        const permRes = await fetch(`https://graph.facebook.com/v25.0/me/permissions?access_token=${accessToken}`)
+        if (permRes.ok) {
+          permissions = await permRes.json()
+        }
+      } catch (errPerms) {}
+      debugWaData = { exception: errWa.message || errWa, permissions: permissions?.data || permissions }
       console.warn(`⚠️ Error buscando cuentas de WhatsApp Business vinculadas:`, errWa)
     }
 
