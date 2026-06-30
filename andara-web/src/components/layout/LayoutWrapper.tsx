@@ -14,73 +14,93 @@ export function LayoutWrapper({ children }: { children: React.ReactNode }) {
   useEffect(() => {
     if (typeof window === 'undefined') return;
 
+    let active = true;
+    let timerId: NodeJS.Timeout;
+
     const pollWebhooks = async () => {
       try {
         const supabase = createClient()
         const { data: { user } } = await supabase.auth.getUser()
-        if (!user || !user.email) return;
+        if (!user?.email) return;
 
         const res = await fetch(`/api/webhook?guide_email=${encodeURIComponent(user.email)}&t=${Date.now()}`)
         if (!res.ok) return;
-        const data = await res.json()
-        
-        if (Array.isArray(data) && data.length > 0) {
-          const processedSigs: string[] = JSON.parse(localStorage.getItem('andara_processed_sigs') || '[]')
-          const newSigs = [...processedSigs]
-          let updated = false
 
-          // Procesar desde el más antiguo al más reciente
-          for (let i = data.length - 1; i >= 0; i--) {
-            const msg = data[i]
-            if (!msg || !msg.phone || !msg.text) continue;
-            
-            const sig = `${msg.name}_${msg.phone}_${msg.text}`.trim()
-            
-            if (!processedSigs.includes(sig)) {
-              let source: 'whatsapp' | 'instagram' | 'facebook' = 'whatsapp'
-              const lowerName = (msg.name || '').toLowerCase()
-              const lowerText = (msg.text || '').toLowerCase()
-              
-              if (lowerName.includes('messenger') || lowerName.includes('fb') || lowerText.includes('messenger') || lowerText.includes('facebook')) {
-                source = 'facebook'
-              } else if (lowerName.includes('ig') || lowerName.includes('instagram') || lowerText.includes('instagram') || lowerText.includes('ig')) {
-                source = 'instagram'
-              }
-              
-              const phone = msg.phone.trim()
-              await processIncomingMessageDirect(msg.name || "Cliente Nuevo", source, phone, msg.text, user.email)
-              
-              if (msg.id) {
-                try {
-                  await supabase.from('mensajes_entrantes').delete().eq('id', msg.id)
-                } catch (dbErr) {
-                  console.error("Error al borrar mensaje procesado de Supabase:", dbErr)
-                }
-              }
-              
-              newSigs.push(sig)
-              updated = true
+        const data = await res.json()
+        if (!Array.isArray(data) || data.length === 0) return;
+
+        let updatedCrm = false;
+
+        // Procesar del más antiguo al más reciente
+        for (let i = data.length - 1; i >= 0; i--) {
+          const msg = data[i]
+          if (!msg?.phone || !msg?.text) continue;
+
+          // Decodificar el canal desde el prefijo del campo phone
+          let source: 'whatsapp' | 'instagram' | 'facebook' = 'whatsapp'
+          let phone = msg.phone.trim()
+
+          if (phone.startsWith('instagram:')) {
+            source = 'instagram'
+            phone = phone.replace('instagram:', '')
+          } else if (phone.startsWith('facebook:')) {
+            source = 'facebook'
+            phone = phone.replace('facebook:', '')
+          } else if (phone.startsWith('whatsapp:')) {
+            source = 'whatsapp'
+            phone = phone.replace('whatsapp:', '')
+          } else {
+            // Fallback legado: intentar detectar por nombre
+            const lowerName = (msg.name || '').toLowerCase()
+            if (lowerName.includes('ig') || lowerName.includes('instagram')) source = 'instagram'
+            else if (lowerName.includes('fb') || lowerName.includes('messenger') || lowerName.includes('facebook')) source = 'facebook'
+          }
+
+          // processIncomingMessageDirect tiene deduplicación interna a nivel de DB.
+          // Si el mensaje ya fue procesado, simplemente lo ignorará sin crear duplicados.
+          await processIncomingMessageDirect(
+            msg.name || (source === 'instagram' ? 'Usuario IG' : source === 'facebook' ? 'Usuario FB' : 'Cliente WA'),
+            source,
+            phone,
+            msg.text,
+            user.email
+          )
+
+          // Eliminar el mensaje de mensajes_entrantes una vez procesado
+          if (msg.id) {
+            try {
+              await fetch(`/api/webhook?id=${encodeURIComponent(msg.id)}`, { method: 'DELETE' })
+            } catch (delErr) {
+              console.warn("Error eliminando mensaje webhook procesado:", delErr)
             }
           }
 
-          if (updated) {
-            localStorage.setItem('andara_processed_sigs', JSON.stringify(newSigs))
-            window.dispatchEvent(new Event('andara_db_update'))
-          }
+          updatedCrm = true;
+        }
+
+        if (updatedCrm) {
+          window.dispatchEvent(new Event('andara_db_update'))
         }
       } catch (e) {
-        console.error("❌ Error polling webhooks globalmente:", e)
+        console.error("❌ Error en poller de webhooks:", e)
+      } finally {
+        if (active) {
+          timerId = setTimeout(pollWebhooks, 3000)
+        }
       }
     }
 
-    const interval = setInterval(pollWebhooks, 2000)
     pollWebhooks()
-    return () => clearInterval(interval)
+
+    return () => {
+      active = false;
+      clearTimeout(timerId);
+    }
   }, [])
-  
-  // Rutas públicas que no deben llevar la barra lateral de administración ni el header
+
+  // Rutas públicas sin sidebar/header
   const isPublicPath = pathname === "/" || pathname === "/login" || pathname === "/register"
-  
+
   if (isPublicPath) {
     return (
       <div className="min-h-screen bg-background text-foreground">
@@ -88,7 +108,7 @@ export function LayoutWrapper({ children }: { children: React.ReactNode }) {
       </div>
     )
   }
-  
+
   return (
     <div className="flex h-screen overflow-hidden bg-background text-foreground">
       <Sidebar />
@@ -101,4 +121,3 @@ export function LayoutWrapper({ children }: { children: React.ReactNode }) {
     </div>
   )
 }
-

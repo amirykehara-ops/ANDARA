@@ -14,12 +14,32 @@ export async function POST(request: Request) {
       return NextResponse.json({ error: "Missing parameters" }, { status: 400 })
     }
 
-    console.log(`🔗 Iniciando vinculación de Facebook para el guía: ${guideEmail}`);
+    let finalUserToken = accessToken
+    const clientSecret = process.env.META_CLIENT_SECRET || process.env.FACEBOOK_CLIENT_SECRET
+
+    if (clientSecret) {
+      try {
+        console.log("📡 Intentando extender el token de usuario a largo plazo...");
+        const exchangeUrl = `https://graph.facebook.com/v25.0/oauth/access_token?grant_type=fb_exchange_token&client_id=3135295740013195&client_secret=${clientSecret}&fb_exchange_token=${accessToken}`
+        const exchangeRes = await fetch(exchangeUrl)
+        if (exchangeRes.ok) {
+          const exchangeData = await exchangeRes.json()
+          if (exchangeData.access_token) {
+            finalUserToken = exchangeData.access_token
+            console.log("✅ Token de usuario extendido a largo plazo con éxito.");
+          }
+        } else {
+          console.warn("⚠️ Meta rechazó la extensión del token:", await exchangeRes.text());
+        }
+      } catch (errExtend) {
+        console.error("❌ Error al extender el token de Meta:", errExtend);
+      }
+    }
 
     // 1. Obtener el nombre del usuario de Facebook
     let fbUserName = "Cuenta de Facebook"
     try {
-      const meUrl = `https://graph.facebook.com/v25.0/me?fields=name&access_token=${accessToken}`
+      const meUrl = `https://graph.facebook.com/v25.0/me?fields=name&access_token=${finalUserToken}`
       const meRes = await fetch(meUrl)
       if (meRes.ok) {
         const meData = await meRes.json()
@@ -30,7 +50,7 @@ export async function POST(request: Request) {
     }
 
     // 2. Obtener las páginas de Facebook administradas por el usuario
-    const accountsUrl = `https://graph.facebook.com/v25.0/me/accounts?access_token=${accessToken}`
+    const accountsUrl = `https://graph.facebook.com/v25.0/me/accounts?access_token=${finalUserToken}`
     const accountsRes = await fetch(accountsUrl)
     
     if (!accountsRes.ok) {

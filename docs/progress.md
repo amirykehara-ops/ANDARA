@@ -5,9 +5,9 @@ Este documento registra el progreso actual del desarrollo de la plataforma web.
 ---
 
 ## 📊 Estado General
-*   **Fase Actual:** Fase 1 (MVP) e inicio de Inteligencia Artificial (AADD)
-*   **Sprint Actual:** Sprint 7 - Landing Page y Reestructuración de Rutas
-*   **Porcentaje de Completitud:** 100% (Sprint 7 finalizado ✅)
+*   **Fase Actual:** Fase 1 (MVP) e integración de Redes Sociales Meta (WhatsApp, Instagram, Messenger)
+*   **Sprint Actual:** Sprint 9 - Estabilización de Webhooks y Corrección de Duplicados
+*   **Porcentaje de Completitud:** 100% (Sprint 9 finalizado ✅)
 
 ---
 
@@ -59,8 +59,27 @@ Este documento registra el progreso actual del desarrollo de la plataforma web.
 *   [x] Clasificación visual de clientes en 4 columnas de estado (Nuevos, Contactados, Negociando, Cerrados).
 *   [x] **Botón Mágico de Conversión:** Automatiza y abre de inmediato chats directos de WhatsApp formateando el número telefónico del lead.
 
+### 8. Integración Meta Multicanal (Sprint 8)
+*   [x] Endpoint unificado para captura de webhooks de Facebook Messenger, Instagram Direct y WhatsApp Business API.
+*   [x] Autenticación OAuth e inicio de sesión de Facebook para vincular páginas comerciales.
+*   [x] Proceso de vinculación de números de WhatsApp Business superando las restricciones físicas de checks SQL mediante el prefijo wa_ en IDs de páginas.
+*   [x] Panel simulador de leads Meta para inyección y comprobación local de payloads.
+
+### 9. Estabilización de Webhooks y Corrección de Duplicados (Sprint 9)
+*   [x] Erradicación de condiciones de carrera en polling mediante migración de `setInterval` a `setTimeout` recursivo asíncrono.
+*   [x] Implementación de prefijos de canal (`whatsapp:`, `instagram:`, `facebook:`) en teléfonos para identificación robusta del origen.
+*   [x] Fusión inteligente de mensajes en leads existentes por teléfono y canal para evitar leads duplicados y consolidar hilos de chat.
+*   [x] Manejador HTTP DELETE para limpiar los mensajes procesados de la memoria global y de Supabase de manera atómica.
+*   [x] Resolución de nombre real del remitente desde Meta Graph API para Facebook Messenger (first_name + last_name) e Instagram Direct (@username o name).
+*   [x] Eliminación de la doble escritura memoria+DB: Supabase `mensajes_entrantes` es ahora la **única fuente de verdad**. El polling del frontend siempre lee de ahí y elimina los registros tras procesarlos.
+*   [x] Deduplicación mejorada a 30 segundos a nivel de mensaje individual en crm.ts para todos los canales (WA, IG, FB).
+*   [x] Eliminación del sistema de firmas en `localStorage` como guard de deduplicación (era inconsistente entre sesiones/recargas). La deduplicación ahora es 100% gestionada por `processIncomingMessageDirect` consultando la base de datos.
+*   [x] Actualización automática de nombres de placeholders (`Usuario IG (...)`, `Usuario FB (...)`, `Cliente WA (...)`) a nombres reales en el lead de Supabase cuando se resuelve el perfil en un mensaje posterior.
+*   [x] Extensión de tokens a largo plazo en `/api/facebook/connect` vía `META_CLIENT_SECRET` para evitar expiración de tokens de página a las 2 horas.
+
 ---
 
 ## 🛠️ Metodología de Desarrollo
 *   **Sprint 1 al 5:** Desarrollo Frontend Core y estructuración visual del MVP.
-*   **Sprint 6 & 7:** Consolidación mediante la metodología de **Desarrollo Guiado por Multi-Agentes (Multi-Agent Driven Development)**, estructurando roles virtuales de IA (`FrontendAgent`, `BackendAgent`, `QAAgent`, `DocsAgent`) para asegurar entregas robustas, libre de TypeScript errors y documentación alineada en la carpeta `/docs`.
+*   **Sprint 6 al 9:** Consolidación mediante la metodología de **Desarrollo Guiado por Multi-Agentes (Multi-Agent Driven Development)**, estructurando roles virtuales de IA (`FrontendAgent`, `BackendAgent`, `QAAgent`, `DocsAgent`) para asegurar entregas robustas, libre de TypeScript errors y documentación alineada en la carpeta `/docs`.
+

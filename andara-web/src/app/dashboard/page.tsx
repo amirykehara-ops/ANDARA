@@ -45,7 +45,7 @@ export default function DashboardPage() {
 
   useEffect(() => {
     loadData()
-    
+
     // Escuchar actualizaciones en localStorage/DB
     window.addEventListener('andara_db_update', loadData)
     return () => {
@@ -61,7 +61,7 @@ export default function DashboardPage() {
   const toursSemana = events.length // Eventos del calendario semanal
 
   return (
-    <motion.div 
+    <motion.div
       className="space-y-8 pb-12"
       variants={containerVariants}
       initial="hidden"

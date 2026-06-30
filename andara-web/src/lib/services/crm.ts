@@ -728,36 +728,30 @@ export async function processIncomingMessage(guideEmail: string): Promise<void> 
   if (webhooks.length === 0) return;
 
   for (const webhook of webhooks) {
-    const leadId = Date.now().toString() + Math.random().toString(36).substr(2, 5);
-    const parsed = parseLeadDetails(webhook.text);
+    let source: 'whatsapp' | 'instagram' | 'facebook' = 'whatsapp';
+    let phone = webhook.phone.trim();
     
-    const leadObj: Lead = {
-      id: leadId,
-      name: webhook.name,
-      source: 'facebook',
-      phone: webhook.phone,
-      interest: webhook.text,
-      status: 'new',
-      destination: parsed.destination,
-      travelDate: parsed.travelDate,
-      peopleCount: parsed.peopleCount,
-      createdAt: new Date().toISOString()
-    };
+    if (phone.startsWith('whatsapp:')) {
+      source = 'whatsapp';
+      phone = phone.replace('whatsapp:', '');
+    } else if (phone.startsWith('instagram:')) {
+      source = 'instagram';
+      phone = phone.replace('instagram:', '');
+    } else if (phone.startsWith('facebook:')) {
+      source = 'facebook';
+      phone = phone.replace('facebook:', '');
+    } else {
+      // Fallback
+      const lowerName = (webhook.name || '').toLowerCase();
+      const lowerText = (webhook.text || '').toLowerCase();
+      if (lowerName.includes('messenger') || lowerName.includes('fb') || lowerText.includes('messenger') || lowerText.includes('facebook')) {
+        source = 'facebook';
+      } else if (lowerName.includes('ig') || lowerName.includes('instagram') || lowerText.includes('instagram') || lowerText.includes('ig')) {
+        source = 'instagram';
+      }
+    }
 
-    await saveLead(leadObj, guideEmail);
-
-    await saveMessage({
-      id: Date.now().toString(),
-      lead_id: leadId,
-      sender: 'client',
-      text: webhook.text,
-    });
-
-    await saveActivityLog({
-      id: Date.now().toString(),
-      timestamp: new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' }),
-      text: `Nuevo prospecto ${webhook.name} recibido vía Messenger.`
-    }, guideEmail);
+    await processIncomingMessageDirect(webhook.name, source, phone, webhook.text, guideEmail);
 
     try {
       await supabase.from('mensajes_entrantes').delete().eq('id', webhook.id);
@@ -776,35 +770,99 @@ export async function processIncomingMessageDirect(
   text: string,
   guideEmail: string
 ): Promise<void> {
-  const leadId = Date.now().toString() + Math.random().toString(36).substr(2, 5);
   const parsed = parseLeadDetails(text);
 
-  const leadObj: Lead = {
-    id: leadId,
-    name,
-    source,
-    phone,
-    interest: text,
-    status: 'new',
-    destination: parsed.destination,
-    travelDate: parsed.travelDate,
-    peopleCount: parsed.peopleCount,
-    createdAt: new Date().toISOString()
-  };
+  // 1. Verificar si ya existe un lead para este guía con el mismo número/identificador y plataforma
+  const leads = await getLeads(guideEmail);
+  const existingLead = leads.find(
+    l => l.phone.trim() === phone.trim() && l.source === source
+  );
 
-  await saveLead(leadObj, guideEmail);
+  let leadId: string;
 
-  await saveMessage({
-    id: Date.now().toString(),
-    lead_id: leadId,
-    sender: 'client',
-    text,
-  });
+  if (existingLead) {
+    leadId = existingLead.id;
+    console.log(`📌 Lead existente encontrado para ${name} (${phone}) en ${source}. Reutilizando ID: ${leadId}`);
+    
+    // Actualizar campos que estén vacíos en el lead existente si se extrajeron del nuevo mensaje
+    const updates: Partial<Lead> = {};
+    if (parsed.destination && !existingLead.destination) {
+      updates.destination = parsed.destination;
+    }
+    if (parsed.travelDate && !existingLead.travelDate) {
+      updates.travelDate = parsed.travelDate;
+    }
+    if (parsed.peopleCount && !existingLead.peopleCount) {
+      updates.peopleCount = parsed.peopleCount;
+    }
+    
+    // Si el nombre del lead existente era un marcador de posición y ahora tenemos un nombre real, actualizarlo
+    const currentLeadName = existingLead.name || "";
+    const PLACEHOLDER_PATTERNS = ["usuario ig", "usuario fb", "cliente nuevo", "meta tester", "cliente wa", "wa usuario"];
+    const isPlaceholder = PLACEHOLDER_PATTERNS.some(p => currentLeadName.toLowerCase().includes(p));
+    const newNameClean = (name || "").trim();
+    const isNewNameReal = newNameClean.length > 0 &&
+                          !PLACEHOLDER_PATTERNS.some(p => newNameClean.toLowerCase().includes(p));
 
+    if (isPlaceholder && isNewNameReal) {
+      updates.name = name;
+      console.log(`👤 Nombre del lead actualizado: "${currentLeadName}" → "${name}"`);
+    }
+    
+    // Siempre actualizamos el interés para reflejar el mensaje más reciente
+    updates.interest = text;
+
+    if (Object.keys(updates).length > 0) {
+      await updateLeadDetails(leadId, updates);
+    }
+  } else {
+    // Si no existe, crear un nuevo lead
+    leadId = Date.now().toString() + Math.random().toString(36).substr(2, 5);
+    console.log(`📌 No existe lead para ${name} (${phone}) en ${source}. Creando nuevo ID: ${leadId}`);
+    
+    const leadObj: Lead = {
+      id: leadId,
+      name,
+      source,
+      phone,
+      interest: text,
+      status: 'new',
+      destination: parsed.destination,
+      travelDate: parsed.travelDate,
+      peopleCount: parsed.peopleCount,
+      createdAt: new Date().toISOString()
+    };
+    await saveLead(leadObj, guideEmail);
+  }
+
+  // 2. Guardar el mensaje del cliente asociado al lead (evitando duplicados idénticos en los últimos 30 segundos)
+  const existingMessages = await getMessages(leadId);
+  const isDuplicateMessage = existingMessages.some(
+    m => m.text === text && m.sender === 'client' && (Date.now() - new Date(m.createdAt).getTime()) < 30000
+  );
+
+  if (!isDuplicateMessage) {
+    await saveMessage({
+      id: Date.now().toString() + Math.random().toString(36).substr(2, 5),
+      lead_id: leadId,
+      sender: 'client',
+      text,
+    });
+    console.log(`💬 Mensaje guardado para lead ${leadId} [${source}]: "${text.substring(0, 50)}"`);
+  } else {
+    console.log(`♻️ Mensaje deduplicado (30s) para lead ${leadId}: "${text.substring(0, 50)}" ya existe.`);
+  }
+
+  // 3. Registrar en el log de actividades
   const sourceName = source === 'facebook' ? 'Messenger' : source === 'instagram' ? 'Instagram' : 'WhatsApp';
+  const logText = existingLead
+    ? `Nuevo mensaje de ${name} recibido vía ${sourceName}.`
+    : `Nuevo prospecto ${name} recibido vía ${sourceName}.`;
+
   await saveActivityLog({
     id: Date.now().toString(),
     timestamp: new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' }),
-    text: `Nuevo prospecto ${name} recibido vía ${sourceName}.`
+    text: logText
   }, guideEmail);
 }
+
