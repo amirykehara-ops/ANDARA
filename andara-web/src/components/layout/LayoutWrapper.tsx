@@ -66,14 +66,10 @@ export function LayoutWrapper({ children }: { children: React.ReactNode }) {
             user.email
           )
 
-          // Eliminar el mensaje de mensajes_entrantes una vez procesado
-          if (msg.id) {
-            try {
-              await fetch(`/api/webhook?id=${encodeURIComponent(msg.id)}`, { method: 'DELETE' })
-            } catch (delErr) {
-              console.warn("Error eliminando mensaje webhook procesado:", delErr)
-            }
-          }
+          // La eliminación (DELETE) ya no se hace aquí.
+          // Ahora el GET en /api/webhook utiliza un delete().select() atómico
+          // que elimina los mensajes y los retorna en una sola operación del lado del servidor.
+          // Esto soluciona por completo las colisiones multi-tab (race conditions).
 
           updatedCrm = true;
         }

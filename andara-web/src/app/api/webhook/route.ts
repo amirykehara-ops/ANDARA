@@ -96,14 +96,16 @@ export async function GET(request: Request) {
   }
   if (!guideEmail) guideEmail = "guia@andara.pe";
 
-  // Leer mensajes pendientes de Supabase (fuente única de verdad)
+  // Leer mensajes pendientes de Supabase (fuente única de verdad) de forma ATÓMICA
   try {
+    // 🔥 FIX: delete().eq().select() elimina las filas y las devuelve en la misma operación.
+    // Esto evita que múltiples pestañas del navegador (multi-tab) descarguen el mismo mensaje
+    // y generen leads duplicados por race conditions.
     const { data, error } = await supabase
       .from('mensajes_entrantes')
-      .select('id, name, phone, text, created_at')
+      .delete()
       .eq('guide_email', guideEmail)
-      .order('created_at', { ascending: false })
-      .limit(50);
+      .select('id, name, phone, text, created_at');
 
     if (!error && data && data.length > 0) {
       const mapped = data.map(item => ({
@@ -114,7 +116,7 @@ export async function GET(request: Request) {
         time: new Date(item.created_at).toLocaleTimeString()
       }));
 
-      // Deduplicar por (phone + text) para el caso de reintentos ya guardados
+      // Deduplicar por (phone + text) localmente para esta ráfaga
       const seen = new Set<string>();
       const deduped = mapped.filter(el => {
         const key = `${el.phone}_${el.text}`;
