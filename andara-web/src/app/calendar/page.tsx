@@ -2,9 +2,9 @@
 "use client"
 
 import { useState, useEffect } from "react"
-import { getCalendarEvents, type CalendarEvent } from "@/lib/services/crm"
+import { getCalendarEvents, markAttendance, type CalendarEvent } from "@/lib/services/crm"
 import { motion, AnimatePresence } from "framer-motion"
-import { ChevronLeft, ChevronRight, Calendar as CalendarIcon, MapPin, Users, Info } from "lucide-react"
+import { ChevronLeft, ChevronRight, Calendar as CalendarIcon, MapPin, Users, Info, CheckCircle2, XCircle } from "lucide-react"
 import { createClient } from "@/utils/supabase/client"
 
 const WEEKDAYS = ["Lunes", "Martes", "Miércoles", "Jueves", "Viernes", "Sábado", "Domingo"]
@@ -18,6 +18,13 @@ export default function CalendarPage() {
     const { data: { user } } = await supabase.auth.getUser()
     const evts = await getCalendarEvents(user?.email || "")
     setEvents(evts)
+  }
+
+  const handleMarkAttendance = async (leadId: string, eventId: string, status: 'asistio' | 'no-show') => {
+    const supabase = createClient()
+    const { data: { user } } = await supabase.auth.getUser()
+    await markAttendance(leadId, eventId, status, user?.email || "")
+    window.dispatchEvent(new Event('andara_db_update'))
   }
 
   useEffect(() => {
@@ -229,6 +236,28 @@ export default function CalendarPage() {
                             <span className="text-muted-foreground">Grupo:</span>
                             <span className="font-bold">{event.peopleCount} personas</span>
                           </div>
+                          {event.attendanceStatus && event.attendanceStatus !== 'pendiente' ? (
+                            <div className="mt-2 pt-2 border-t border-border/50">
+                              <span className={`text-[10px] font-bold uppercase ${event.attendanceStatus === 'asistio' ? 'text-emerald-500' : 'text-rose-500'}`}>
+                                {event.attendanceStatus === 'asistio' ? '✅ Asistió' : '❌ No se presentó'}
+                              </span>
+                            </div>
+                          ) : day.fullDate <= new Date() || day.isToday ? (
+                            <div className="mt-2 pt-2 border-t border-border/50 flex gap-2">
+                              <button 
+                                onClick={() => handleMarkAttendance(event.leadId, event.id, 'asistio')}
+                                className="flex-1 py-1 bg-emerald-500/10 hover:bg-emerald-500/20 text-emerald-600 dark:text-emerald-400 rounded text-[10px] font-bold uppercase transition flex items-center justify-center gap-1 cursor-pointer"
+                              >
+                                <CheckCircle2 className="w-3 h-3" /> Asistió
+                              </button>
+                              <button 
+                                onClick={() => handleMarkAttendance(event.leadId, event.id, 'no-show')}
+                                className="flex-1 py-1 bg-rose-500/10 hover:bg-rose-500/20 text-rose-600 dark:text-rose-400 rounded text-[10px] font-bold uppercase transition flex items-center justify-center gap-1 cursor-pointer"
+                              >
+                                <XCircle className="w-3 h-3" /> No-Show
+                              </button>
+                            </div>
+                          ) : null}
                         </div>
                       </motion.div>
                     ))

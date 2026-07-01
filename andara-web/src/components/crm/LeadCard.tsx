@@ -69,9 +69,20 @@ export function LeadCard({ lead, onMoveLead, onSelectLead }: LeadCardProps) {
         {getChannelBadge(lead.source)}
       </div>
 
-      {/* Message / Interest */}
-      <div className="space-y-1 relative z-10">
-        <p className="text-xs text-muted-foreground font-semibold uppercase tracking-wider">Mensaje</p>
+      {/* Message / Interest and AI Score */}
+      <div className="space-y-2 relative z-10">
+        <div className="flex justify-between items-center">
+          <p className="text-xs text-muted-foreground font-semibold uppercase tracking-wider">Mensaje</p>
+          {lead.aiScore && (
+            <span className={`text-[10px] font-bold px-2 py-0.5 rounded-full border ${
+              lead.aiScore === 'Alto' ? 'bg-emerald-500/10 text-emerald-600 border-emerald-500/20' :
+              lead.aiScore === 'Medio' ? 'bg-amber-500/10 text-amber-600 border-amber-500/20' :
+              'bg-slate-500/10 text-slate-600 border-slate-500/20'
+            }`}>
+              Intención: {lead.aiScore}
+            </span>
+          )}
+        </div>
         <p className="text-sm text-foreground line-clamp-2 italic leading-relaxed">
           "{lead.interest}"
         </p>

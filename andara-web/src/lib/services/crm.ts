@@ -1,5 +1,6 @@
-// src/lib/services/crm.ts
 import { createClient } from '@/utils/supabase/client';
+import { addNotification } from './notifications';
+import { extractLeadData, scoreLead } from './ai';
 
 export interface Lead {
   id: string;
@@ -12,6 +13,8 @@ export interface Lead {
   travelDate?: string;
   peopleCount?: number;
   notes?: string;
+  attendanceStatus?: 'pendiente' | 'asistio' | 'no-show';
+  aiScore?: 'Alto' | 'Medio' | 'Bajo';
   createdAt: string;
   guide_email?: string;
 }
@@ -31,6 +34,7 @@ export interface CalendarEvent {
   destination: string;
   date: string;
   peopleCount: number;
+  attendanceStatus?: 'pendiente' | 'asistio' | 'no-show';
   guide_email?: string;
 }
 
@@ -97,6 +101,7 @@ export async function getLeads(guideEmail: string): Promise<Lead[]> {
         travelDate: l.travel_date,
         peopleCount: l.people_count,
         notes: l.notes,
+        attendanceStatus: l.attendance_status,
         createdAt: l.created_at,
         guide_email: l.guide_email,
       }));
@@ -147,6 +152,7 @@ export async function saveLead(lead: Lead, guideEmail: string): Promise<void> {
       travel_date: lead.travelDate || null,
       people_count: lead.peopleCount || null,
       notes: lead.notes || null,
+      attendance_status: lead.attendanceStatus || 'pendiente',
     });
   } catch (e) {
     console.warn("Supabase saveLead error, saved locally:", e);
@@ -185,6 +191,16 @@ export async function updateLeadStatus(leadId: string, status: Lead['status']): 
     travelDate: dbLead.travel_date,
     peopleCount: dbLead.people_count
   } : lead;
+
+  // Notificar si se reservó
+  if (status === 'reserved' && finalLead && finalLead.guide_email) {
+    await addNotification({
+      title: "Nuevo tour reservado",
+      message: `${finalLead.name} acaba de confirmar una reserva.`,
+      type: 'success',
+      link: '/calendar',
+    }, finalLead.guide_email);
+  }
 
   if (finalLead && finalLead.guide_email) {
     const statusNames: Record<string, string> = {
@@ -342,6 +358,7 @@ export async function getCalendarEvents(guideEmail: string): Promise<CalendarEve
         destination: e.destination,
         date: e.date,
         peopleCount: e.people_count,
+        attendanceStatus: e.attendance_status,
         guide_email: e.guide_email
       }));
       
@@ -383,10 +400,49 @@ export async function saveCalendarEvent(event: CalendarEvent, guideEmail: string
       destination: event.destination,
       date: event.date,
       people_count: event.peopleCount,
+      attendance_status: event.attendanceStatus || 'pendiente',
     });
   } catch (e) {
     console.warn("Supabase saveCalendarEvent error, saved locally:", e);
   }
+}
+
+export async function markAttendance(leadId: string, eventId: string, status: 'asistio' | 'no-show', guideEmail: string): Promise<void> {
+  // Update Calendar Event
+  const localEvents = getLocal<CalendarEvent[]>('andara_calendar', []);
+  const eventIdx = localEvents.findIndex(e => e.id === eventId);
+  if (eventIdx >= 0) {
+    localEvents[eventIdx].attendanceStatus = status;
+    setLocal('andara_calendar', localEvents);
+  }
+
+  // Update Lead
+  const localLeads = getLocal<Lead[]>('andara_leads', []);
+  const leadIdx = localLeads.findIndex(l => l.id === leadId);
+  let leadName = 'Cliente';
+  if (leadIdx >= 0) {
+    localLeads[leadIdx].attendanceStatus = status;
+    leadName = localLeads[leadIdx].name;
+    setLocal('andara_leads', localLeads);
+  }
+
+  try {
+    const supabase = createClient();
+    await supabase.from('eventos_calendario').update({ attendance_status: status }).eq('id', eventId);
+    await supabase.from('leads').update({ attendance_status: status }).eq('id', leadId);
+  } catch (e) {
+    console.warn("Supabase markAttendance error, saved locally:", e);
+  }
+
+  const logText = status === 'no-show' 
+    ? `${leadName} no se presentó al tour.`
+    : `${leadName} asistió al tour.`;
+    
+  await saveActivityLog({
+    id: Date.now().toString(),
+    timestamp: new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' }),
+    text: logText
+  }, guideEmail);
 }
 
 // ─── ACTIVITY LOGS ───────────────────────────────────────────────────────────
@@ -538,6 +594,8 @@ export async function updateLeadDetails(leadId: string, updates: Partial<Lead>):
       travelDate: updates.travelDate ?? lead.travelDate,
       peopleCount: updates.peopleCount ?? lead.peopleCount,
       notes: updates.notes ?? lead.notes,
+      attendanceStatus: updates.attendanceStatus ?? lead.attendanceStatus,
+      aiScore: updates.aiScore ?? lead.aiScore,
     };
     setLocal('andara_leads', local);
   }
@@ -556,6 +614,8 @@ export async function updateLeadDetails(leadId: string, updates: Partial<Lead>):
       travel_date: updates.travelDate,
       people_count: updates.peopleCount,
       notes: updates.notes,
+      attendance_status: updates.attendanceStatus,
+      ai_score: updates.aiScore,
     }).eq('id', leadId);
   } catch (e) {
     console.warn("Supabase updateLeadDetails error, updated locally:", e);
@@ -770,7 +830,20 @@ export async function processIncomingMessageDirect(
   text: string,
   guideEmail: string
 ): Promise<void> {
-  const parsed = parseLeadDetails(text);
+  let parsed = parseLeadDetails(text);
+
+  // Fallback a IA si el parser no extrajo la información clave
+  if (!parsed.destination || !parsed.travelDate || !parsed.peopleCount) {
+    const aiExtracted = await extractLeadData(text);
+    if (aiExtracted) {
+      parsed = {
+        destination: parsed.destination || aiExtracted.destination,
+        travelDate: parsed.travelDate || aiExtracted.travelDate,
+        peopleCount: parsed.peopleCount || aiExtracted.peopleCount,
+      };
+      console.log(`🤖 IA Extrajo datos adicionales:`, aiExtracted);
+    }
+  }
 
   // 1. Verificar si ya existe un lead para este guía con el mismo número/identificador y plataforma
   const leads = await getLeads(guideEmail);
@@ -833,6 +906,13 @@ export async function processIncomingMessageDirect(
       createdAt: new Date().toISOString()
     };
     await saveLead(leadObj, guideEmail);
+
+    await addNotification({
+      title: "Nuevo Prospecto",
+      message: `Has recibido un nuevo mensaje de ${name} por ${source === 'facebook' ? 'Messenger' : source === 'instagram' ? 'Instagram' : 'WhatsApp'}.`,
+      type: 'info',
+      link: `/inbox?leadId=${leadId}`,
+    }, guideEmail);
   }
 
   // 2. Guardar el mensaje del cliente asociado al lead (evitando duplicados idénticos en los últimos 30 segundos)
@@ -851,6 +931,14 @@ export async function processIncomingMessageDirect(
     console.log(`💬 Mensaje guardado para lead ${leadId} [${source}]: "${text.substring(0, 50)}"`);
   } else {
     console.log(`♻️ Mensaje deduplicado (30s) para lead ${leadId}: "${text.substring(0, 50)}" ya existe.`);
+  }
+
+  // Actualizar Score de Conversión con IA
+  const allMessages = await getMessages(leadId);
+  const newScore = await scoreLead(leadId, allMessages);
+  if (newScore) {
+    await updateLeadDetails(leadId, { aiScore: newScore });
+    console.log(`🧠 AI Score actualizado para lead ${leadId}: ${newScore}`);
   }
 
   // 3. Registrar en el log de actividades

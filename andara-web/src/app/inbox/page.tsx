@@ -14,6 +14,7 @@ import {
   type Lead, 
   type Conversation 
 } from "@/lib/services/crm"
+import { suggestReply, summarizeConversation } from "@/lib/services/ai"
 import { 
   MessageCircle, 
   Camera, 
@@ -28,7 +29,8 @@ import {
   Save, 
   MessageSquare,
   Sparkles,
-  ExternalLink
+  ExternalLink,
+  Bot
 } from "lucide-react"
 
 function InboxContent() {
@@ -50,6 +52,12 @@ function InboxContent() {
   const [profilePeopleCount, setProfilePeopleCount] = useState(1)
   const [profileNotes, setProfileNotes] = useState("")
   const [saveStatus, setSaveStatus] = useState("")
+
+  // AI States
+  const [aiSuggestions, setAiSuggestions] = useState<string[]>([])
+  const [aiSummary, setAiSummary] = useState<string>("")
+  const [isLoadingAiSuggestions, setIsLoadingAiSuggestions] = useState(false)
+  const [isLoadingAiSummary, setIsLoadingAiSummary] = useState(false)
 
   const loadData = async () => {
     const supabase = createClient()
@@ -92,6 +100,35 @@ function InboxContent() {
       setSaveStatus("")
     }
   }, [selectedLeadId, activeLead])
+
+  // Call AI on conversation load
+  useEffect(() => {
+    const fetchAI = async () => {
+      if (activeConv && activeLead) {
+        // Suggestions
+        setIsLoadingAiSuggestions(true)
+        const lastMsg = activeConv.messages[activeConv.messages.length - 1]
+        if (lastMsg && lastMsg.sender === 'client') {
+          const leadCtx = `Destino: ${activeLead.destination || 'No definido'}, Viaje: ${activeLead.travelDate || 'No definido'}, Pax: ${activeLead.peopleCount || 1}`
+          const sugs = await suggestReply(lastMsg.text, leadCtx)
+          setAiSuggestions(sugs || [])
+        } else {
+          setAiSuggestions([])
+        }
+        setIsLoadingAiSuggestions(false)
+
+        // Summary
+        setIsLoadingAiSummary(true)
+        const sum = await summarizeConversation(activeConv.messages)
+        setAiSummary(sum || "")
+        setIsLoadingAiSummary(false)
+      } else {
+        setAiSuggestions([])
+        setAiSummary("")
+      }
+    }
+    fetchAI()
+  }, [activeConv?.leadId, activeConv?.messages.length])
 
   const handleSaveProfile = async (e: React.FormEvent) => {
     e.preventDefault()
@@ -314,6 +351,22 @@ function InboxContent() {
               })}
             </div>
 
+            {/* AI Suggestions */}
+            {aiSuggestions.length > 0 && (
+              <div className="px-4 py-2 flex flex-wrap gap-2">
+                {aiSuggestions.map((sug, idx) => (
+                  <button
+                    key={idx}
+                    onClick={() => setReplyText(sug)}
+                    className="text-xs bg-primary/10 hover:bg-primary/20 text-primary px-3 py-1.5 rounded-full border border-primary/20 transition flex items-center gap-1.5"
+                  >
+                    <Bot className="w-3 h-3" />
+                    <span className="truncate max-w-[200px]">{sug}</span>
+                  </button>
+                ))}
+              </div>
+            )}
+
             {/* Input y Botón de Acción Principal */}
             <div className="p-4 border-t border-border/40 bg-background/20 backdrop-blur-sm space-y-3">
               <div className="flex gap-2">
@@ -386,6 +439,19 @@ function InboxContent() {
                     <span className="font-semibold text-foreground">{activeLead.travelDate || "-"}</span>
                   </div>
                 </div>
+              </div>
+            )}
+
+            {/* AI Summary */}
+            {aiSummary && (
+              <div className="p-3.5 bg-gradient-to-br from-blue-500/10 to-indigo-500/5 border border-blue-500/20 rounded-2xl space-y-2">
+                <div className="flex items-center gap-1.5 text-xs font-bold text-blue-500">
+                  <Bot className="w-3.5 h-3.5" />
+                  <span>RESUMEN IA</span>
+                </div>
+                <p className="text-xs text-foreground/80 leading-relaxed">
+                  {aiSummary}
+                </p>
               </div>
             )}
 

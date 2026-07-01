@@ -3,6 +3,7 @@
 import { createClient } from "@/utils/supabase/client"
 import { useState, useEffect } from "react"
 import { getLeads, getCalendarEvents, getActivityLogs, type Lead, type ActivityLog } from "@/lib/services/crm"
+import { addNotification } from "@/lib/services/notifications"
 import { StatCard } from "@/components/dashboard/StatCard"
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card"
 import { Users, MessageSquare, Phone, CalendarDays, Map, Clock, ArrowRight } from "lucide-react"
@@ -41,6 +42,49 @@ export default function DashboardPage() {
     setLeads(leads)
     setEvents(events)
     setLogs(logs)
+
+    // Notificaciones Diarias (Tours de hoy y Leads inactivos)
+    const lastCheck = localStorage.getItem('andara_last_notif_check')
+    const todayStr = new Date().toDateString()
+    
+    if (lastCheck !== todayStr) {
+      // 1. Verificar tours de hoy
+      const todayEvents = events.filter(e => {
+        try {
+          const d = new Date(e.date)
+          return !isNaN(d.getTime()) && d.toDateString() === todayStr
+        } catch { return false }
+      })
+
+      if (todayEvents.length > 0) {
+        addNotification({
+          title: "Tours programados para hoy",
+          message: `Tienes ${todayEvents.length} tour(s) programado(s) para hoy. Revisa el calendario.`,
+          type: 'info',
+          link: '/calendar'
+        }, email)
+      }
+
+      // 2. Verificar leads inactivos (>24h sin interacción)
+      const now = Date.now()
+      const inactiveLeads = leads.filter(l => {
+        if (l.status === 'completed' || l.status === 'reserved') return false
+        const createdDate = new Date(l.createdAt).getTime()
+        const diffHours = (now - createdDate) / (1000 * 60 * 60)
+        return diffHours > 24
+      })
+
+      if (inactiveLeads.length > 0) {
+        addNotification({
+          title: "Leads inactivos detectados",
+          message: `Tienes ${inactiveLeads.length} lead(s) esperando respuesta hace más de 24 horas.`,
+          type: 'warning',
+          link: '/crm'
+        }, email)
+      }
+
+      localStorage.setItem('andara_last_notif_check', todayStr)
+    }
   }
 
   useEffect(() => {
@@ -59,6 +103,13 @@ export default function DashboardPage() {
   const leadsContactados = leads.filter(l => l.status === 'contacted').length
   const reservasConfirmadas = leads.filter(l => l.status === 'reserved').length
   const toursSemana = events.length // Eventos del calendario semanal
+
+  // Cálculo de Tasa de Asistencia
+  const eventosEvaluados = events.filter(e => e.attendanceStatus === 'asistio' || e.attendanceStatus === 'no-show')
+  const asistieron = eventosEvaluados.filter(e => e.attendanceStatus === 'asistio').length
+  const tasaAsistencia = eventosEvaluados.length > 0 
+    ? Math.round((asistieron / eventosEvaluados.length) * 100) 
+    : 0
 
   return (
     <motion.div
@@ -84,8 +135,8 @@ export default function DashboardPage() {
         </Link>
       </motion.div>
 
-      {/* Grid de 5 métricas simples y operacionales */}
-      <motion.div variants={containerVariants} className="grid gap-6 sm:grid-cols-2 lg:grid-cols-5">
+      {/* Grid de métricas simples y operacionales */}
+      <motion.div variants={containerVariants} className="grid gap-6 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-6">
         <motion.div variants={itemVariants}>
           <StatCard
             title="Leads Nuevos"
@@ -133,6 +184,16 @@ export default function DashboardPage() {
             description="En calendario semanal"
             icon={Map}
             trend="neutral"
+            trendValue=""
+          />
+        </motion.div>
+        <motion.div variants={itemVariants}>
+          <StatCard
+            title="Tasa de Asistencia"
+            value={`${tasaAsistencia}%`}
+            description={`${asistieron} de ${eventosEvaluados.length} evaluados`}
+            icon={Users}
+            trend={tasaAsistencia >= 80 ? "up" : tasaAsistencia > 0 ? "down" : "neutral"}
             trendValue=""
           />
         </motion.div>

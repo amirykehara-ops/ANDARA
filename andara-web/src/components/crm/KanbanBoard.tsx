@@ -14,6 +14,7 @@ const COLUMNS = [
   { id: "proposal", title: "Cotización enviada", color: "bg-purple-500", border: "border-purple-500/20", glow: "shadow-purple-500/5" },
   { id: "reserved", title: "Reservado", color: "bg-emerald-500", border: "border-emerald-500/20", glow: "shadow-emerald-500/5" },
   { id: "completed", title: "Finalizado", color: "bg-slate-500", border: "border-slate-500/20", glow: "shadow-slate-500/5" },
+  { id: "no-show", title: "No-Show", color: "bg-rose-500", border: "border-rose-500/20", glow: "shadow-rose-500/5" },
 ] as const
 
 export function KanbanBoard() {
@@ -43,8 +44,10 @@ export function KanbanBoard() {
     const nextStatusIndex = currentStatusIndex + direction
     if (nextStatusIndex < 0 || nextStatusIndex >= COLUMNS.length) return
     const newStatus = COLUMNS[nextStatusIndex].id
+    
+    if (newStatus === 'no-show') return // Cannot move to no-show via arrow
 
-    await updateLeadStatus(id, newStatus)
+    await updateLeadStatus(id, newStatus as any)
 
     await loadLeads()
     window.dispatchEvent(new Event('andara_db_update'))
@@ -78,7 +81,10 @@ export function KanbanBoard() {
 
       <div className="flex-1 flex gap-6 overflow-x-auto pb-4 no-scrollbar">
         {COLUMNS.map(column => {
-          const columnLeads = filteredLeads.filter(l => l.status === column.id)
+          const columnLeads = column.id === 'no-show'
+            ? filteredLeads.filter(l => l.attendanceStatus === 'no-show')
+            : filteredLeads.filter(l => l.status === column.id && l.attendanceStatus !== 'no-show')
+          
           return (
             <div
               key={column.id}

@@ -9,7 +9,9 @@ import { motion } from "framer-motion"
 import Script from 'next/script'
 import { useState, useEffect } from 'react'
 import { getGuideSettings, saveGuideSettings, saveActivityLog } from "@/lib/services/crm"
+import { getAIConfig, saveAIConfig, type AIConfig } from "@/lib/services/ai"
 import { createClient } from "@/utils/supabase/client"
+import { Switch } from "@/components/ui/switch"
 
 export default function SettingsPage() {
   const [name, setName] = useState("Guía Demo")
@@ -29,6 +31,13 @@ export default function SettingsPage() {
   const [waAccountName, setWaAccountName] = useState("")
   const [metaDebugInfo, setMetaDebugInfo] = useState<any>(null)
   const [fbReady, setFbReady] = useState(false)
+  
+  const [aiConfig, setAiConfig] = useState<AIConfig>({
+    enableExtraction: true,
+    enableSuggestions: true,
+    enableSummary: true,
+    enableScoring: true
+  })
 
   useEffect(() => {
     const init = async () => {
@@ -50,6 +59,8 @@ export default function SettingsPage() {
         setLanguages((settings as any).languages || "Español, Inglés")
         setLicense((settings as any).license || "DIRTUR-ICA-00123")
       }
+
+      setAiConfig(getAIConfig())
 
       // 1. Cargar primero de local storage como fallback inmediato
       if (typeof window !== 'undefined') {
@@ -153,6 +164,12 @@ export default function SettingsPage() {
     window.dispatchEvent(new Event('andara_db_update'))
     setSaveStatus("✅ Configuración guardada exitosamente")
     setTimeout(() => setSaveStatus(""), 3000)
+  }
+
+  const handleToggleAI = (key: keyof AIConfig) => {
+    const newConfig = { ...aiConfig, [key]: !aiConfig[key] }
+    setAiConfig(newConfig)
+    saveAIConfig(newConfig)
   }
 
   const handleFBLogin = () => {
@@ -423,6 +440,54 @@ export default function SettingsPage() {
                 : "Cargando entorno seguro de Meta..."
             }
           </Button>
+        </div>
+
+        {/* MÓDULO C - IA */}
+        <div className="mt-8 pt-8 border-t border-border/40 space-y-4">
+          <div className="flex items-center justify-between">
+            <div>
+              <h3 className="text-lg font-bold text-foreground flex items-center gap-2">
+                <span className="text-xl">✨</span> Asistente Inteligente (IA)
+              </h3>
+              <p className="text-sm text-muted-foreground mt-1">
+                Funciones de apoyo operativo para agilizar tu gestión. Se degradan silenciosamente si fallan.
+              </p>
+            </div>
+          </div>
+
+          <div className="space-y-4 mt-6">
+            <div className="flex items-center justify-between p-4 bg-muted/30 border border-border/50 rounded-xl">
+              <div>
+                <p className="font-semibold text-foreground text-sm">Extracción Inteligente de Datos</p>
+                <p className="text-xs text-muted-foreground">Extrae destino, personas y fechas cuando el parser base falla.</p>
+              </div>
+              <Switch checked={aiConfig.enableExtraction} onCheckedChange={() => handleToggleAI('enableExtraction')} />
+            </div>
+
+            <div className="flex items-center justify-between p-4 bg-muted/30 border border-border/50 rounded-xl">
+              <div>
+                <p className="font-semibold text-foreground text-sm">Sugerencias de Respuesta (Inbox)</p>
+                <p className="text-xs text-muted-foreground">Genera 1-2 respuestas sugeridas listas para enviar.</p>
+              </div>
+              <Switch checked={aiConfig.enableSuggestions} onCheckedChange={() => handleToggleAI('enableSuggestions')} />
+            </div>
+
+            <div className="flex items-center justify-between p-4 bg-muted/30 border border-border/50 rounded-xl">
+              <div>
+                <p className="font-semibold text-foreground text-sm">Resumen de Conversación (Perfil)</p>
+                <p className="text-xs text-muted-foreground">Resume todo el historial del chat en 2 líneas.</p>
+              </div>
+              <Switch checked={aiConfig.enableSummary} onCheckedChange={() => handleToggleAI('enableSummary')} />
+            </div>
+
+            <div className="flex items-center justify-between p-4 bg-muted/30 border border-border/50 rounded-xl">
+              <div>
+                <p className="font-semibold text-foreground text-sm">Score de Conversión (Kanban)</p>
+                <p className="text-xs text-muted-foreground">Etiqueta la intención de compra (Alto/Medio/Bajo).</p>
+              </div>
+              <Switch checked={aiConfig.enableScoring} onCheckedChange={() => handleToggleAI('enableScoring')} />
+            </div>
+          </div>
         </div>
       </motion.div>
     </div>

@@ -3,6 +3,7 @@
 
 import { Bell, Search, Sun, Moon } from "lucide-react"
 import { useEffect, useState } from "react"
+import { NotificationDropdown } from "@/components/ui/NotificationDropdown"
 
 export function Header() {
   const [theme, setTheme] = useState<'light' | 'dark'>('light')
@@ -65,10 +66,7 @@ export function Header() {
           )}
         </button>
 
-        <button className="relative p-2 text-muted-foreground hover:text-foreground hover:bg-muted/50 rounded-full transition-colors cursor-pointer">
-          <span className="absolute right-2 top-2 block h-2 w-2 rounded-full bg-secondary ring-2 ring-background" />
-          <Bell className="h-5 w-5" />
-        </button>
+        <NotificationDropdown />
       </div>
     </header>
   )
